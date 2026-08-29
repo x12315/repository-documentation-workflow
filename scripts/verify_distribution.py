@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -101,17 +103,76 @@ def validate_marketplace(marketplace_root: Path, expected_plugin_name: str) -> P
     return plugin_root
 
 
+def _skill_files(skill_root: Path, label: str) -> dict[Path, Path]:
+    """Return regular Skill files, rejecting symlinks in the tree."""
+    if skill_root.is_symlink() or not skill_root.is_dir():
+        raise ValueError(f"{label} skill tree must be a directory without symlinks")
+    files = {}
+    for path in skill_root.rglob("*"):
+        if path.is_symlink():
+            raise ValueError(f"{label} skill tree must not contain symlinks: {path}")
+        if path.is_file():
+            files[path.relative_to(skill_root)] = path
+    return files
+
+
+def validate_skill_inventory(source_skill_root: Path, marketplace_skill_root: Path) -> int:
+    """Verify copied Skill files exactly match the source Skill inventory and bytes."""
+    source_files = _skill_files(source_skill_root, "source")
+    marketplace_files = _skill_files(marketplace_skill_root, "marketplace")
+    if source_files.keys() != marketplace_files.keys():
+        raise ValueError("marketplace skill inventory does not match source")
+    for relative_path, source_path in source_files.items():
+        if source_path.read_bytes() != marketplace_files[relative_path].read_bytes():
+            raise ValueError(f"marketplace skill bytes differ: {relative_path}")
+    return len(source_files)
+
+
+def validate_marketplace_smoke(repository_root: Path) -> int:
+    """Build and validate a temporary local marketplace for this plugin."""
+    plugin_name = repository_root.name
+    source_skill_root = repository_root / "skills" / plugin_name
+    with tempfile.TemporaryDirectory() as temp_name:
+        marketplace_root = Path(temp_name)
+        plugin_root = marketplace_root / "plugins" / plugin_name
+        plugin_root.mkdir(parents=True)
+        (marketplace_root / ".agents/plugins").mkdir(parents=True)
+        (marketplace_root / ".agents/plugins/marketplace.json").write_text(
+            json.dumps({
+                "name": "local-smoke-test",
+                "plugins": [{
+                    "name": plugin_name,
+                    "source": {"source": "local", "path": f"./plugins/{plugin_name}"},
+                    "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+                    "category": "Productivity",
+                }],
+            }),
+            encoding="utf-8",
+        )
+        for relative_path in (Path(".codex-plugin/plugin.json"), Path("CHANGELOG.md"), Path("LICENSE")):
+            destination = plugin_root / relative_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(repository_root / relative_path, destination)
+        marketplace_skill_root = plugin_root / "skills" / plugin_name
+        shutil.copytree(source_skill_root, marketplace_skill_root, symlinks=True)
+        resolved_plugin_root = validate_marketplace(marketplace_root, plugin_name)
+        validate_plugin_manifest(resolved_plugin_root)
+        return validate_skill_inventory(source_skill_root, marketplace_skill_root)
+
+
 def main() -> int:
     """Validate plugin distribution metadata for a repository root."""
     if len(sys.argv) != 2:
         print("usage: verify_distribution.py REPOSITORY_ROOT", file=sys.stderr)
         return 2
     try:
-        version = validate_plugin_manifest(Path(sys.argv[1]).resolve())
-    except ValueError as error:
+        repository_root = Path(sys.argv[1]).resolve()
+        version = validate_plugin_manifest(repository_root)
+        skill_files = validate_marketplace_smoke(repository_root)
+    except (OSError, ValueError) as error:
         print(f"distribution verification failed: {error}", file=sys.stderr)
         return 1
-    print(f"verified plugin distribution {version}")
+    print(f"verified plugin distribution {version} ({skill_files} skill files)")
     return 0
 
 
