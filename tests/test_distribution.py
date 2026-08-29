@@ -13,10 +13,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from verify_distribution import validate_marketplace, validate_plugin_manifest  # noqa: E402
+from verify_distribution import SEMVER_RE, validate_marketplace, validate_plugin_manifest  # noqa: E402
 
 
 class DistributionTest(unittest.TestCase):
+    def test_semver_requires_nonempty_identifiers_and_canonical_numeric_prereleases(self) -> None:
+        for version in ("1.0.0", "1.0.0-alpha.1+build.5"):
+            with self.subTest(version=version):
+                self.assertIsNotNone(SEMVER_RE.fullmatch(version))
+
+        for version in ("1.0.0-01", "1.0.0-.", "1.0.0-alpha..1"):
+            with self.subTest(version=version):
+                self.assertIsNone(SEMVER_RE.fullmatch(version))
+
     def test_repository_manifest_is_valid_and_versioned(self) -> None:
         self.assertEqual("0.1.0", validate_plugin_manifest(ROOT))
 
