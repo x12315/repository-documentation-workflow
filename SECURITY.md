@@ -8,7 +8,7 @@
 
 不要在公开 issue 中披露漏洞细节、复现凭据、访问 token、私有路径或其他敏感输入。
 
-当前仓库尚未创建 GitHub remote，也尚未启用 private vulnerability reporting，因此没有可用的私密 GitHub 报告通道或可公布的安全邮箱。创建公开 GitHub 仓库并启用该功能后，请使用仓库 Security 页面中的 **Report a vulnerability** 提交详情。维护者应在启用前完成报告渠道配置；在此之前不要以公开讨论替代私密漏洞报告。
+公开 GitHub 仓库已经创建，但尚未启用 private vulnerability reporting，因此目前仍没有可用的私密 GitHub 报告通道或可公布的安全邮箱。启用该功能后，请使用仓库 Security 页面中的 **Report a vulnerability** 提交详情。维护者应在启用前完成报告渠道配置；在此之前不要以公开讨论替代私密漏洞报告。
 
 ## 处理边界
 

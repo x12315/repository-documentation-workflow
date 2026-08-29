@@ -9,15 +9,29 @@
 | 项目 | 状态 |
 | --- | --- |
 | 版本表面 | `.codex-plugin/plugin.json` 与 `CHANGELOG.md` 记录为 `0.1.0`。 |
-| Agent Skills CLI | 已用隔离的临时消费仓库完成真实 copy-install smoke，并核对安装副本的 schema 与文件内容。 |
+| Agent Skills CLI | 已分别从本地 checkout 和公开 GitHub 仓库完成隔离 copy-install smoke，并核对安装副本。 |
 | OpenAI plugin | 根目录 manifest 已准备；尚未发布公开 marketplace，不能提供公开安装 URL 或命令。 |
-| Git 发布 | 当前没有 remote、tag 或正式 release。 |
+| Git 发布 | [GitHub 仓库](https://github.com/x12315/repository-documentation-workflow)已创建；尚无 tag 或正式 release。 |
 
-因此，首次使用请选择下方可验证的 Agent Skills CLI 路径。plugin 的人工安装与发布前检查见 [`docs/releasing.md`](docs/releasing.md)。
+因此，首次使用请选择下方已经过真实远程安装验证的 Agent Skills CLI 路径。plugin 的人工安装与发布前检查见 [`docs/releasing.md`](docs/releasing.md)。
 
 ## 安装
 
-### Agent Skills CLI（当前可验证）
+### Agent Skills CLI（GitHub，已验证）
+
+在目标仓库中运行：
+
+```bash
+npx --yes skills@1.5.23 add x12315/repository-documentation-workflow \
+  --skill repository-documentation-workflow \
+  --agent codex \
+  --copy \
+  --yes
+```
+
+该命令从公开 GitHub 仓库取得源码，并把 Skill copy 安装到当前仓库的 `.agents/skills/repository-documentation-workflow/`。
+
+### Agent Skills CLI（本地 checkout）
 
 将源码 checkout 与消费仓库放在同一父目录。例如：
 

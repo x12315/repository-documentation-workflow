@@ -1,6 +1,6 @@
 # 发布指南
 
-本文件是版本与远程发布的权威入口。当前仓库没有 remote、tag 或正式 release；本轮不创建它们。
+本文件是版本与远程发布的权威入口。公开 remote 为 <https://github.com/x12315/repository-documentation-workflow>；当前仍没有 tag 或正式 release。创建 remote 和上传 feature 分支不等于完成版本发布。
 
 ## 发布前保持一致
 
@@ -32,9 +32,9 @@
 4. 使用官方 OpenAI plugin 安装/validator 界面或 CLI 完成人工验证。根 manifest 已准备，但没有公开 marketplace；不得把 manifest 存在视为已安装或已发布。
 5. 查看 `tests/forward-runs/<version>/` 的原始 author/reviewer 结果，确认它们只主张实际覆盖的任务、模型和 verdict。
 
-## 创建远程后的补充项
+## GitHub 仓库配置
 
-创建 remote 后，补齐真实 repository metadata（description、topics、默认分支保护）和 Security 页面配置；启用 GitHub private vulnerability reporting 后，`SECURITY.md` 中的 **Report a vulnerability** 路径才可用。不要用未知 URL、账号或邮箱替代这些事实。
+远程仓库已配置真实 description、topics 和 `main` 默认分支。正式发布前还应核对默认分支保护和 Security 页面配置；启用 GitHub private vulnerability reporting 后，`SECURITY.md` 中的 **Report a vulnerability** 路径才可用。不要用未知 URL、账号或邮箱替代这些事实。
 
 ## 需要用户确认的动作
 
