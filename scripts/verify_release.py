@@ -43,13 +43,14 @@ def verify_local_markdown_links(skill_root: Path) -> int:
 
 
 def verify_repository_markdown_links(repository_root: Path) -> int:
-    """Verify repository Markdown links without reading Git metadata or scratch trees."""
+    """Verify repository Markdown links without Git, scratch, or consumer install trees."""
     repository_root = repository_root.resolve()
     excluded_roots = {".git", ".superpowers"}
     markdown_files = [
         path
         for path in repository_root.rglob("*.md")
-        if not (path.relative_to(repository_root).parts and path.relative_to(repository_root).parts[0] in excluded_roots)
+        if (relative_path := path.relative_to(repository_root)).parts[0] not in excluded_roots
+        and relative_path.parts[:2] != (".agents", "skills")
     ]
     return _verify_local_markdown_links(markdown_files, repository_root)
 

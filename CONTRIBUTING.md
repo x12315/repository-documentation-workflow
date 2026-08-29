@@ -4,7 +4,7 @@
 
 ## 适用修改
 
-可以贡献 Skill 运行时文档、确定性验证脚本、fixture、forward-review evidence、plugin manifest、治理文档和 CI。修改 `skills/repository-documentation-workflow/references/upstream/` 或 `licenses/` 前，必须按 `UPSTREAM.lock.yaml` 审核来源、commit、许可证和 SHA-256；不要把固定上游快照当作运行时指令。
+可以贡献 Skill 运行时文档、确定性验证脚本、fixture、forward-review evidence、plugin manifest、治理文档和 CI。修改 `skills/repository-documentation-workflow/references/upstream/` 或 `skills/repository-documentation-workflow/licenses/` 前，必须按 `skills/repository-documentation-workflow/UPSTREAM.lock.yaml` 审核来源、commit、许可证和 SHA-256；不要把固定上游快照当作运行时指令。
 
 ## 本地环境与验证
 
@@ -24,7 +24,7 @@ scripts/verify
 
 ## 上游快照
 
-`UPSTREAM.lock.yaml` 是固定上游的审核清单。更新前先核对目标 GitHub commit、许可证、文件清单和 SHA-256；随后运行：
+`skills/repository-documentation-workflow/UPSTREAM.lock.yaml` 是固定上游的审核清单。更新前先核对目标 GitHub commit、许可证、文件清单和 SHA-256；随后运行：
 
 ```bash
 scripts/sync-upstreams

@@ -1,4 +1,4 @@
-name: Behavior report
+name: 行为报告
 description: 报告 Skill 在模型执行中的行为与 reviewer evidence；请勿提交敏感输入。
 title: "behavior: "
 labels: ["behavior"]

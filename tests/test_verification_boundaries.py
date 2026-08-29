@@ -74,7 +74,16 @@ class VerificationBoundaryTest(unittest.TestCase):
                 verify_repository_markdown_links(repository_root)
 
             (docs / "missing.md").write_text("present\n", encoding="utf-8")
-            self.assertEqual(1, verify_repository_markdown_links(repository_root))
+            installed_skill = repository_root / ".agents/skills/installed-skill"
+            installed_skill.mkdir(parents=True)
+            (installed_skill / "generated.md").write_text(
+                "[ignored](missing.md)\n",
+                encoding="utf-8",
+            )
+            agent_notes = repository_root / ".agents/notes.md"
+            agent_notes.write_text("[included](included.md)\n", encoding="utf-8")
+            (repository_root / ".agents/included.md").write_text("present\n", encoding="utf-8")
+            self.assertEqual(2, verify_repository_markdown_links(repository_root))
 
     def test_unsupported_frontmatter_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
