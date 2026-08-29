@@ -14,6 +14,14 @@ from verify_distribution import validate_plugin_manifest
 REVIEWER_ROLES = {"cold-reader", "coverage-reviewer"}
 VERDICTS = {"PASS", "FAIL"}
 VERDICT_LINE_RE = re.compile(r"verdict:\s*(PASS|FAIL)\s*$")
+REQUIRED_EVIDENCE = (
+    "author-input/request.md",
+    "author-input/source-packet.md",
+    "author-contract.yaml",
+    "fact-ledger.md",
+    "draft.md",
+    "skill-change-summary.md",
+)
 
 
 def load_json_yaml(path: Path) -> dict:
@@ -44,20 +52,33 @@ def require_object(record: dict, field: str, location: str) -> dict:
 
 
 def resolve_evidence_path(run_root: Path, relative_path: object, field: str) -> Path:
-    """Resolve a required evidence file without permitting a run-root escape."""
+    """Return a non-empty, non-symlinked evidence file inside one forward run."""
     if not isinstance(relative_path, str) or not relative_path.strip():
         raise ValueError(f"{field} must be a non-empty relative path")
     path = Path(relative_path)
     if path.is_absolute():
         raise ValueError(f"{field} must be relative to the forward run")
-    resolved = (run_root / path).resolve()
+    if ".." in path.parts:
+        raise ValueError(f"{field} leaves the forward run")
+
+    candidate = run_root
+    for component in path.parts:
+        if component == ".":
+            continue
+        candidate /= component
+        if candidate.is_symlink():
+            raise ValueError(f"{field} must not use a symlink")
+
+    resolved = candidate.resolve()
     try:
         resolved.relative_to(run_root)
     except ValueError as error:
         raise ValueError(f"{field} leaves the forward run") from error
-    if not resolved.is_file():
-        raise ValueError(f"{field} does not exist: {relative_path}")
-    return resolved
+    if not candidate.is_file():
+        raise ValueError(f"{field} must be a regular file: {relative_path}")
+    if candidate.stat().st_size == 0:
+        raise ValueError(f"{field} must be a non-empty regular file")
+    return candidate
 
 
 def first_result_verdict(result_path: Path) -> str:
@@ -77,8 +98,12 @@ def first_result_verdict(result_path: Path) -> str:
 
 def validate_forward_run(run_root: Path, expected_version: str) -> int:
     """Validate one recorded run and return its number of reviewer results."""
+    if run_root.is_symlink():
+        raise ValueError("forward run root must not be a symlink")
+    if not run_root.is_dir():
+        raise ValueError("forward run root must be a directory")
     run_root = run_root.resolve()
-    record = load_json_yaml(run_root / "record.yaml")
+    record = load_json_yaml(resolve_evidence_path(run_root, "record.yaml", "record.yaml"))
     if record.get("schema_version") != 1:
         raise ValueError("record.schema_version must be 1")
     if record.get("release_version") != expected_version:
@@ -91,6 +116,8 @@ def validate_forward_run(run_root: Path, expected_version: str) -> int:
     require_nonempty_string(author, "context_id", "record.author")
     require_nonempty_string(author, "model", "record.author")
     resolve_evidence_path(run_root, author.get("report_path"), "record.author.report_path")
+    for evidence_path in REQUIRED_EVIDENCE:
+        resolve_evidence_path(run_root, evidence_path, f"required evidence {evidence_path}")
 
     rounds = record.get("rounds")
     if not isinstance(rounds, list) or not rounds:

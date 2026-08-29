@@ -21,8 +21,16 @@ class ForwardRunValidationTest(unittest.TestCase):
         """Create one valid run record and its referenced evidence."""
         run_root = root / "newcomer-architecture"
         results = run_root / "results"
+        author_input = run_root / "author-input"
         results.mkdir(parents=True)
+        author_input.mkdir()
         (run_root / "author-report.md").write_text("author self-check\n", encoding="utf-8")
+        (author_input / "request.md").write_text("author request\n", encoding="utf-8")
+        (author_input / "source-packet.md").write_text("author source packet\n", encoding="utf-8")
+        (run_root / "author-contract.yaml").write_text("{}\n", encoding="utf-8")
+        (run_root / "fact-ledger.md").write_text("fact ledger\n", encoding="utf-8")
+        (run_root / "draft.md").write_text("draft\n", encoding="utf-8")
+        (run_root / "skill-change-summary.md").write_text("summary\n", encoding="utf-8")
         (results / "round-1-cold-reader.md").write_text("verdict: PASS\n", encoding="utf-8")
         (results / "round-1-coverage-reviewer.md").write_text("verdict: PASS\n", encoding="utf-8")
         record = {
@@ -90,6 +98,55 @@ class ForwardRunValidationTest(unittest.TestCase):
             run_root = self.write_run(Path(temporary_directory))
 
             self.assertEqual(2, validate_forward_run(run_root, "0.1.0"))
+
+    def test_rejects_a_missing_required_evidence_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            run_root = self.write_run(Path(temporary_directory))
+            (run_root / "fact-ledger.md").unlink()
+
+            with self.assertRaisesRegex(ValueError, "required evidence"):
+                validate_forward_run(run_root, "0.1.0")
+
+    def test_rejects_an_empty_required_evidence_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            run_root = self.write_run(Path(temporary_directory))
+            (run_root / "draft.md").write_text("", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "non-empty"):
+                validate_forward_run(run_root, "0.1.0")
+
+    def test_rejects_a_symlinked_required_evidence_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            run_root = self.write_run(Path(temporary_directory))
+            draft = run_root / "draft.md"
+            target = run_root / "draft-target.md"
+            draft.rename(target)
+            draft.symlink_to(target)
+
+            with self.assertRaisesRegex(ValueError, "symlink"):
+                validate_forward_run(run_root, "0.1.0")
+
+    def test_rejects_a_symlinked_required_evidence_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            run_root = self.write_run(Path(temporary_directory))
+            author_input = run_root / "author-input"
+            target = run_root / "author-input-target"
+            author_input.rename(target)
+            author_input.symlink_to(target, target_is_directory=True)
+
+            with self.assertRaisesRegex(ValueError, "symlink"):
+                validate_forward_run(run_root, "0.1.0")
+
+    def test_rejects_a_symlinked_record(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            run_root = self.write_run(Path(temporary_directory))
+            record = run_root / "record.yaml"
+            target = run_root / "record-target.yaml"
+            record.rename(target)
+            record.symlink_to(target)
+
+            with self.assertRaisesRegex(ValueError, "symlink"):
+                validate_forward_run(run_root, "0.1.0")
 
     def test_rejects_round_numbers_that_are_not_continuous_from_one(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
