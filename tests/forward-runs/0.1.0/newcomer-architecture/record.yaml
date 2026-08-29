@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "release_version": "0.1.0",
+  "case": "newcomer-architecture",
+  "model_reviews_run": true,
+  "outcome": "passed",
+  "author": {
+    "context_id": "/root/forward_author_round1",
+    "model": "gpt-5 (exact runtime revision not exposed)",
+    "report_path": "author-report.md"
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "reviewers": [
+        {
+          "role": "cold-reader",
+          "reviewer_id": "/root/forward_cold_reader_r1",
+          "model": "gpt-5 (exact runtime revision not exposed)",
+          "verdict": "PASS",
+          "result_path": "results/round-1-cold-reader.md"
+        },
+        {
+          "role": "coverage-reviewer",
+          "reviewer_id": "/root/forward_coverage_r1",
+          "model": "gpt-5 (exact runtime revision not exposed)",
+          "verdict": "PASS",
+          "result_path": "results/round-1-coverage-reviewer.md"
+        }
+      ]
+    }
+  ]
+}

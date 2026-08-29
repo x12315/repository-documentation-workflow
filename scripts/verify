@@ -33,6 +33,8 @@ fi
 "$repository_root/scripts/verify-upstreams"
 python3 "$repository_root/scripts/verify_release.py" "$skill_root"
 "$repository_root/tests/verify-fixtures"
+python3 "$repository_root/scripts/verify_forward_runs.py" "$repository_root"
+python3 "$repository_root/tests/test_forward_runs.py"
 python3 "$repository_root/tests/test_verification_boundaries.py"
 python3 "$repository_root/tests/test_sync_upstreams.py"
 

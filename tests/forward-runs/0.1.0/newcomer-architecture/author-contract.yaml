@@ -1,0 +1,104 @@
+{
+  "primary_reader": "刚加入 RelayHub 项目、目前只知道系统负责接收和分发任务的后端工程师",
+  "entry_state": [
+    "知道 RelayHub 接收并分发任务",
+    "尚未建立任务端到端路径、组件边界和失败恢复模型"
+  ],
+  "exit_outcomes": [
+    "能按顺序说明一次成功任务如何经过 ingress、task_log、router、queue、worker、result_store 和 receipt-api",
+    "能区分 ingress、router、worker 与 receipt-api 的职责和明确的不负责事项",
+    "能指出 task_log 与 result_store 的写入、读取和可见性边界",
+    "能解释至少一次投递为何可能产生重复处理，以及 task_id 幂等写如何处理已写结果后的重复投递",
+    "能区分当前自动化测试已覆盖的行为、尚未执行的验证和 source packet 未定义的行为",
+    "需要查询 task_type 到 queue 的完整映射时，知道转向配置 reference，而不是从架构主线寻找"
+  ],
+  "document_type": "explanation",
+  "reading_mode": "hybrid",
+  "scope": {
+    "includes": [
+      "任务的端到端主路径",
+      "组件职责与依赖方向",
+      "task_log、result_store、queue acknowledgment 和 worker 内存的边界",
+      "source packet 明确描述的失败恢复行为",
+      "当前自动化测试覆盖范围与尚未执行的验证"
+    ],
+    "delegates": [
+      {
+        "topic": "task_type 与 queue 的完整映射",
+        "destination": "配置 reference（source packet 未提供具体路径）"
+      }
+    ],
+    "excludes": [
+      "source packet 未提供的数据模型、保留策略、一致性和复制保证",
+      "source packet 未定义的失败重试策略和错误接口契约",
+      "尚未执行的压力测试、跨可用区恢复和生产故障演练结论"
+    ]
+  },
+  "mainline": "沿一项任务从入口验证、请求落盘和路由选择，到单队列执行、结果写入和结果读取的路径建立系统模型，再用这条路径解释组件边界、重复投递恢复和验证状态。",
+  "cognitive_skeleton": [
+    {
+      "order": 1,
+      "heading": "阅读路径",
+      "purpose": "区分首次线性阅读入口与后续按组件查阅入口",
+      "prerequisites": []
+    },
+    {
+      "order": 2,
+      "heading": "系统全景",
+      "purpose": "先给出完整控制和数据路径，建立后续章节共用的方向",
+      "prerequisites": [
+        "RelayHub 接收并分发任务"
+      ]
+    },
+    {
+      "order": 3,
+      "heading": "一次任务如何穿过系统",
+      "purpose": "按时序解释正常路径，并引出写结果后再确认消息的顺序约束",
+      "prerequisites": [
+        "系统全景"
+      ]
+    },
+    {
+      "order": 4,
+      "heading": "组件职责",
+      "purpose": "把主路径拆成可按名称查阅的职责、输入和明确边界",
+      "prerequisites": [
+        "一次任务如何穿过系统"
+      ]
+    },
+    {
+      "order": 5,
+      "heading": "持久化与可见性边界",
+      "purpose": "集中说明 task_log、result_store、queue acknowledgment 和 worker 内存之间的状态边界",
+      "prerequisites": [
+        "组件职责"
+      ]
+    },
+    {
+      "order": 6,
+      "heading": "失败与恢复",
+      "purpose": "用入口写入失败和写结果后崩溃两个已知场景解释系统行为，并标明未定义场景",
+      "prerequisites": [
+        "持久化与可见性边界",
+        "queue 至少一次投递",
+        "task_id 幂等键"
+      ]
+    },
+    {
+      "order": 7,
+      "heading": "当前验证状态",
+      "purpose": "区分已由自动化测试覆盖、尚未执行和没有证据的结论",
+      "prerequisites": [
+        "正常路径与失败恢复模型"
+      ]
+    },
+    {
+      "order": 8,
+      "heading": "配置 reference 边界",
+      "purpose": "把完整路由映射转交给配置 reference，避免在架构主线复制易变化细节",
+      "prerequisites": [
+        "router 的职责"
+      ]
+    }
+  ]
+}
