@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "fixture_intent": "正向成稿用于验证 reviewer 结果记录协议；确定性脚本不判断文章质量，实际模型 PASS 由单独的审查记录证明。",
+  "expected_verdicts": {
+    "cold-reader": "PASS",
+    "coverage-reviewer": "PASS"
+  },
+  "expected_findings": {
+    "cold-reader": [],
+    "coverage-reviewer": []
+  }
+}

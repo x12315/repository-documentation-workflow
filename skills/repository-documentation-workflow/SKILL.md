@@ -1,6 +1,6 @@
 ---
 name: repository-documentation-workflow
-description: 创建或实质性重写面向人的仓库文档；先定义读者与阅读结果，依据代码、配置和测试建立事实账本，再按认知路径组织 README、ADR、架构与设计说明、tutorial、how-to、reference 或运维文档，并用 fresh-context 审查闭环。不用于 Agent 指令文件、代码注释、PR/commit/issue 文案或轻微校对。
+description: 创建或实质性重写面向人的仓库文档。Use for creating or substantially rewriting human-facing repository documentation. Do not use for agent instructions, code comments, PR/commit/issue copy, or minor edits.
 ---
 
 # 仓库文档工作流

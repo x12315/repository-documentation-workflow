@@ -36,6 +36,24 @@
       "request": "为新贡献者写一个从克隆仓库到跑通首个示例的 tutorial。",
       "expected": "invoke",
       "reason": "创建线性学习文档。"
+    },
+    {
+      "id": "english-readme-from-repository-facts",
+      "request": "Create a new README from the repository's code, configuration, and tests, verifying every command before publication.",
+      "expected": "invoke",
+      "reason": "英文请求创建需要事实核验的根 README。"
+    },
+    {
+      "id": "english-architecture-explanation-rewrite",
+      "request": "Substantially rewrite the architecture explanation so new maintainers can follow one request through the system before looking up component boundaries.",
+      "expected": "invoke",
+      "reason": "英文请求实质性重写面向人的架构 explanation。"
+    },
+    {
+      "id": "code-and-documentation-mixed-task",
+      "request": "Add retry metrics to the worker and substantially rewrite the operations runbook so on-call engineers can diagnose the new metric from the repository evidence.",
+      "expected": "invoke",
+      "reason": "代码与文档混合任务；只对文档部分应用本工作流。"
     }
   ]
 }

@@ -134,11 +134,24 @@ for case in case_directories:
             fail(f"{case.name}: coverage source path and range must be non-empty strings")
 
     oracle = load_json_compatible_yaml(case / "oracle.yaml")
+    if oracle.get("schema_version") != 1:
+        fail(f"{case.name}: oracle schema_version must be 1")
+    expected_verdicts = oracle.get("expected_verdicts")
+    if not isinstance(expected_verdicts, dict) or set(expected_verdicts) != {"cold-reader", "coverage-reviewer"}:
+        fail(f"{case.name}: oracle must define verdicts for both reviewer roles")
+    if any(verdict not in {"PASS", "FAIL"} for verdict in expected_verdicts.values()):
+        fail(f"{case.name}: oracle verdicts must be PASS or FAIL")
     expected = oracle.get("expected_findings")
     if not isinstance(expected, dict) or set(expected) != {"cold-reader", "coverage-reviewer"}:
         fail(f"{case.name}: oracle must separate both reviewer roles")
-    if not all(isinstance(expected[role], list) and expected[role] for role in expected):
-        fail(f"{case.name}: each oracle role needs at least one finding")
+    for role, verdict in expected_verdicts.items():
+        findings = expected[role]
+        if not isinstance(findings, list):
+            fail(f"{case.name}: {role} oracle findings must be a list")
+        if verdict == "PASS" and findings:
+            fail(f"{case.name}: PASS {role} verdict must have no findings")
+        if verdict == "FAIL" and not findings:
+            fail(f"{case.name}: FAIL {role} verdict must have findings")
     allowed_finding_kinds = {
         "cold-reader": {"conceptual-gap", "exit-outcome-missing", "navigation-friction"},
         "coverage-reviewer": {"factual-conflict", "source-omission", "status-drift"},
