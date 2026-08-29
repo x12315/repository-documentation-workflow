@@ -128,6 +128,24 @@ def validate_skill_inventory(source_skill_root: Path, marketplace_skill_root: Pa
     return len(source_files)
 
 
+def _source_delivery_file(repository_root: Path, relative_path: Path) -> Path:
+    """Return a regular source delivery file without resolving through symlinks."""
+    resolved_root = repository_root.resolve()
+    source_path = repository_root / relative_path
+    try:
+        source_path.resolve(strict=True).relative_to(resolved_root)
+    except (OSError, ValueError) as error:
+        raise ValueError(f"source delivery path leaves repository: {relative_path}") from error
+    current = source_path
+    while current != repository_root:
+        if current.is_symlink():
+            raise ValueError(f"source delivery path uses symlink: {relative_path}")
+        current = current.parent
+    if not source_path.is_file():
+        raise ValueError(f"source delivery path must be a regular file: {relative_path}")
+    return source_path
+
+
 def validate_marketplace_smoke(repository_root: Path) -> int:
     """Build and validate a temporary local marketplace for this plugin."""
     plugin_name = repository_root.name
@@ -149,10 +167,14 @@ def validate_marketplace_smoke(repository_root: Path) -> int:
             }),
             encoding="utf-8",
         )
-        for relative_path in (Path(".codex-plugin/plugin.json"), Path("CHANGELOG.md"), Path("LICENSE")):
+        source_files = tuple(
+            (relative_path, _source_delivery_file(repository_root, relative_path))
+            for relative_path in (Path(".codex-plugin/plugin.json"), Path("CHANGELOG.md"), Path("LICENSE"))
+        )
+        for relative_path, source_path in source_files:
             destination = plugin_root / relative_path
             destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(repository_root / relative_path, destination)
+            shutil.copyfile(source_path, destination)
         marketplace_skill_root = plugin_root / "skills" / plugin_name
         shutil.copytree(source_skill_root, marketplace_skill_root, symlinks=True)
         resolved_plugin_root = validate_marketplace(marketplace_root, plugin_name)

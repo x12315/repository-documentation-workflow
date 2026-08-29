@@ -23,6 +23,36 @@ from verify_distribution import (  # noqa: E402
 
 
 class DistributionTest(unittest.TestCase):
+    def _write_minimal_repository(self, workspace: Path) -> Path:
+        repository_root = workspace / "repository-documentation-workflow"
+        plugin_name = repository_root.name
+        (repository_root / ".codex-plugin").mkdir(parents=True)
+        (repository_root / "skills" / plugin_name).mkdir(parents=True)
+        (repository_root / ".codex-plugin/plugin.json").write_text(
+            json.dumps({
+                "name": plugin_name,
+                "version": "0.1.0",
+                "description": "test plugin",
+                "author": {"name": "test"},
+                "license": "Apache-2.0",
+                "skills": "./skills/",
+                "interface": {
+                    "displayName": "Test",
+                    "shortDescription": "Test",
+                    "longDescription": "Test",
+                    "developerName": "test",
+                    "category": "Productivity",
+                    "capabilities": ["Write"],
+                    "defaultPrompt": "Test",
+                },
+            }),
+            encoding="utf-8",
+        )
+        (repository_root / "CHANGELOG.md").write_text("## [0.1.0]", encoding="utf-8")
+        (repository_root / "LICENSE").write_text("Apache-2.0", encoding="utf-8")
+        (repository_root / "skills" / plugin_name / "SKILL.md").write_text("# Test", encoding="utf-8")
+        return repository_root
+
     def test_semver_requires_nonempty_identifiers_and_canonical_numeric_prereleases(self) -> None:
         for version in ("1.0.0", "1.0.0-alpha.1+build.5"):
             with self.subTest(version=version):
@@ -38,6 +68,32 @@ class DistributionTest(unittest.TestCase):
     def test_marketplace_smoke_validates_the_copied_plugin_inventory(self) -> None:
         source_files = [path for path in (ROOT / "skills/repository-documentation-workflow").rglob("*") if path.is_file()]
         self.assertEqual(len(source_files), validate_marketplace_smoke(ROOT))
+
+    def test_marketplace_smoke_rejects_symlinked_delivery_surface(self) -> None:
+        source_paths = (Path(".codex-plugin/plugin.json"), Path("CHANGELOG.md"), Path("LICENSE"))
+        with tempfile.TemporaryDirectory() as temp_name:
+            workspace = Path(temp_name)
+            for source_path in source_paths:
+                with self.subTest(source_path=source_path):
+                    repository_root = self._write_minimal_repository(workspace / source_path.stem)
+                    source = repository_root / source_path
+                    outside = workspace / f"outside-{source_path.stem}"
+                    outside.write_bytes(source.read_bytes())
+                    source.unlink()
+                    source.symlink_to(outside)
+                    with self.assertRaisesRegex(ValueError, "source delivery"):
+                        validate_marketplace_smoke(repository_root)
+
+            repository_root = self._write_minimal_repository(workspace / "parent")
+            source_directory = repository_root / ".codex-plugin"
+            outside_directory = workspace / "outside-codex-plugin"
+            outside_directory.mkdir()
+            (outside_directory / "plugin.json").write_bytes((source_directory / "plugin.json").read_bytes())
+            (source_directory / "plugin.json").unlink()
+            source_directory.rmdir()
+            source_directory.symlink_to(outside_directory, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "source delivery"):
+                validate_marketplace_smoke(repository_root)
 
     def test_skill_inventory_rejects_bytes_and_symlink_drift(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
