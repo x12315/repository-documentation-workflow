@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "role": "cold-reader",
+  "primary_reader": "刚加入 RelayHub、只知道系统接收和分发任务的后端工程师",
+  "entry_state": "会阅读后端服务文档，但不知道 RelayHub 的组件、存储或失败语义",
+  "exit_outcomes": [
+    "按顺序说出一次成功任务经过的组件和持久化点",
+    "区分 ingress、router、worker 与 receipt-api 的职责",
+    "解释至少一次投递下重复执行为何不改变已有结果",
+    "指出当前自动化验证覆盖与尚未验证的边界",
+    "找到完整 task_type 路由映射的正确入口"
+  ],
+  "reading_mode": "hybrid",
+  "reading_order": ["draft.md"],
+  "draft_paths": ["draft.md"]
+}

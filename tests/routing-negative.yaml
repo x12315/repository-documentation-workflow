@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "minor-copyedit",
+      "request": "把 README 第二段的两个错别字修掉，其他内容不要动。",
+      "expected": "do-not-invoke",
+      "reason": "轻微校对不需要完整工作流。"
+    },
+    {
+      "id": "agent-instructions",
+      "request": "更新 AGENTS.md，加入 Python 默认使用 uv 的规则。",
+      "expected": "do-not-invoke",
+      "reason": "Agent 指令文件由 agent-writing 流程处理。"
+    },
+    {
+      "id": "commit-message",
+      "request": "根据当前 diff 写一个 conventional commit message。",
+      "expected": "do-not-invoke",
+      "reason": "commit 文案不是项目文档。"
+    },
+    {
+      "id": "non-persistent-explanation",
+      "request": "解释一下这段 retry 逻辑为什么会形成惊群，不用改文件。",
+      "expected": "do-not-invoke",
+      "reason": "不落盘的一般解释不进入仓库文档工作流。"
+    },
+    {
+      "id": "public-api-comment",
+      "request": "给这个公开函数补一段 Doxygen 注释，说明参数和错误码。",
+      "expected": "do-not-invoke",
+      "reason": "源码接口注释不是独立仓库文档。"
+    },
+    {
+      "id": "generated-docs-command",
+      "request": "运行现有 OpenAPI 文档生成器并提交输出，不要人工改写。",
+      "expected": "do-not-invoke",
+      "reason": "生成文档由现有生成流程负责。"
+    }
+  ]
+}

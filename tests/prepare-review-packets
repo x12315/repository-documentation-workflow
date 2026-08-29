@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""Materialize isolated reviewer packets without invoking a model."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import sys
+from pathlib import Path
+
+
+def load_packet(path: Path) -> dict:
+    """Read one JSON-compatible YAML packet."""
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"cannot read {path}; only JSON-compatible YAML is accepted: {error}") from error
+    if not isinstance(value, dict):
+        raise ValueError(f"{path} must contain an object")
+    return value
+
+
+def safe_case_path(case_root: Path, relative: object, field: str) -> Path:
+    """Resolve one packet path while keeping it inside the fixture case."""
+    if not isinstance(relative, str) or not relative:
+        raise ValueError(f"{field} must be a non-empty relative path")
+    resolved = (case_root / relative).resolve()
+    try:
+        resolved.relative_to(case_root.resolve())
+    except ValueError as error:
+        raise ValueError(f"{field} leaves the fixture case: {relative}") from error
+    if not resolved.is_file():
+        raise ValueError(f"{field} does not name a file: {relative}")
+    return resolved
+
+
+def prepare_packets(case_root: Path, output_root: Path) -> None:
+    """Copy each role's whitelist into a separate directory and create a run record."""
+    case_root = case_root.resolve()
+    if output_root.exists() and any(output_root.iterdir()):
+        raise ValueError(f"output directory must be empty: {output_root}")
+    output_root.mkdir(parents=True, exist_ok=True)
+
+    cold = load_packet(case_root / "cold-reader-packet.yaml")
+    coverage = load_packet(case_root / "coverage-reviewer-packet.yaml")
+    cold_root = output_root / "cold-reader"
+    coverage_root = output_root / "coverage-reviewer"
+    cold_root.mkdir()
+    coverage_root.mkdir()
+    (cold_root / "packet.yaml").write_text(
+        json.dumps(cold, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    (coverage_root / "packet.yaml").write_text(
+        json.dumps(coverage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+    for relative in cold["draft_paths"]:
+        source = safe_case_path(case_root, relative, "cold-reader.draft_paths")
+        shutil.copy2(source, cold_root / source.name)
+    for relative in coverage["draft_paths"]:
+        source = safe_case_path(case_root, relative, "coverage-reviewer.draft_paths")
+        shutil.copy2(source, coverage_root / source.name)
+    ledger = safe_case_path(case_root, coverage["fact_ledger_path"], "fact_ledger_path")
+    shutil.copy2(ledger, coverage_root / ledger.name)
+    copied_names = {"packet.yaml", ledger.name, *(path.name for path in coverage_root.glob("*.md"))}
+    for source_entry in coverage["sources"]:
+        if not isinstance(source_entry, dict) or set(source_entry) != {"path", "range"}:
+            raise ValueError("each coverage source must contain only path and range")
+        source = safe_case_path(case_root, source_entry["path"], "sources.path")
+        if source.name in copied_names:
+            raise ValueError(f"coverage source basename collides in role packet: {source.name}")
+        shutil.copy2(source, coverage_root / source.name)
+        copied_names.add(source.name)
+
+    record = {
+        "schema_version": 1,
+        "case": case_root.name,
+        "model_reviews_run": False,
+        "rounds": [],
+        "required_per_round": {
+            "fresh_contexts": ["cold-reader", "coverage-reviewer"],
+            "fields": ["round", "role", "reviewer_id", "model", "verdict", "result_path"],
+        },
+    }
+    (output_root / "review-record.yaml").write_text(
+        json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+
+def main() -> int:
+    """Parse CLI arguments and prepare one fixture case."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("case", type=Path)
+    parser.add_argument("output", type=Path)
+    args = parser.parse_args()
+    try:
+        prepare_packets(args.case, args.output)
+    except (KeyError, OSError, ValueError) as error:
+        print(f"review packet preparation failed: {error}", file=sys.stderr)
+        return 1
+    print(f"prepared isolated reviewer packets in {args.output}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Repository Documentation Workflow"
+  short_description: "按读者认知路径编写并独立审查仓库文档"
+
+policy:
+  allow_implicit_invocation: true

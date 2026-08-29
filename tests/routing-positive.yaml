@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "newcomer-architecture-rewrite",
+      "request": "重写现有架构文档，让第一次接触项目的开发者能先建立整体模型，再理解各模块边界。",
+      "expected": "invoke",
+      "reason": "实质性重写面向人的架构 explanation。"
+    },
+    {
+      "id": "readme-from-repository-facts",
+      "request": "根据代码、配置和测试为这个仓库写一份新的 README，并核对所有命令。",
+      "expected": "invoke",
+      "reason": "依据仓库证据创建根 README。"
+    },
+    {
+      "id": "adr-for-storage-decision",
+      "request": "把当前存储选型及其约束整理成 ADR，事实以实现和 benchmark 为准。",
+      "expected": "invoke",
+      "reason": "创建供人阅读且需要事实核验的决策文档。"
+    },
+    {
+      "id": "operations-runbook",
+      "request": "为值班工程师编写服务恢复 runbook，步骤必须与现有脚本和告警名称一致。",
+      "expected": "invoke",
+      "reason": "创建运维操作文档。"
+    },
+    {
+      "id": "configuration-reference",
+      "request": "从 schema 和默认配置生成一份人工维护的配置 reference，并解释字段间约束。",
+      "expected": "invoke",
+      "reason": "创建面向查阅的 reference，而非运行生成器。"
+    },
+    {
+      "id": "first-project-tutorial",
+      "request": "为新贡献者写一个从克隆仓库到跑通首个示例的 tutorial。",
+      "expected": "invoke",
+      "reason": "创建线性学习文档。"
+    }
+  ]
+}

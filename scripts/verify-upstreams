@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+"""Verify schema, inventory, and hashes of vendored upstream files."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+from upstream_lock import load_lock, verify_snapshot
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SKILL_ROOT = ROOT / "skills" / "repository-documentation-workflow"
+LOCK_PATH = SKILL_ROOT / "UPSTREAM.lock.yaml"
+
+
+try:
+    file_count, source_count = verify_snapshot(load_lock(LOCK_PATH), SKILL_ROOT)
+except (OSError, ValueError) as error:
+    print(f"upstream verification failed: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+print(f"verified {file_count} vendored files from {source_count} upstream sources")

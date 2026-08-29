@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+skill_root="$repository_root/skills/repository-documentation-workflow"
+PYTHONDONTWRITEBYTECODE=1
+export PYTHONDONTWRITEBYTECODE
+
+validator=${SKILL_QUICK_VALIDATE:-}
+if [ -z "$validator" ] && [ -n "${CODEX_HOME:-}" ]; then
+  candidate="$CODEX_HOME/skills/.system/skill-creator/scripts/quick_validate.py"
+  if [ -f "$candidate" ]; then
+    validator=$candidate
+  fi
+fi
+if [ -z "$validator" ]; then
+  candidate="$HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py"
+  if [ -f "$candidate" ]; then
+    validator=$candidate
+  fi
+fi
+python3 "$repository_root/scripts/verify_skill_schema.py" "$skill_root"
+python3 "$repository_root/scripts/verify_tracked.py" "$repository_root"
+
+if [ -n "$validator" ] && [ -f "$validator" ] && python3 -c 'import yaml' >/dev/null 2>&1; then
+  python3 "$validator" "$skill_root"
+  echo "official quick_validate.py layer: passed"
+else
+  echo "official quick_validate.py layer: not run (validator or PyYAML unavailable); strict stdlib layer passed" >&2
+fi
+
+"$repository_root/scripts/verify-upstreams"
+python3 "$repository_root/scripts/verify_release.py" "$skill_root"
+"$repository_root/tests/verify-fixtures"
+python3 "$repository_root/tests/test_verification_boundaries.py"
+python3 "$repository_root/tests/test_sync_upstreams.py"
+
+echo "all deterministic repository-documentation-workflow checks passed"

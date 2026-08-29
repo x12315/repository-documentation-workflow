@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "role": "coverage-reviewer",
+  "scope": "解释端到端主路径、组件边界、持久化、失败恢复和验证状态；路由映射留在配置 reference",
+  "fact_ledger_path": "fact-ledger.md",
+  "sources": [
+    {"path": "source-packet.md", "range": "S1-S10"}
+  ],
+  "draft_paths": ["draft.md"],
+  "evidence_levels": ["implemented", "automated test", "tested with named gaps", "documented boundary"]
+}

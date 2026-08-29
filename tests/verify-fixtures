@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""Validate routing and output-case fixtures without pretending to run a model."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+def fail(message: str) -> None:
+    print(f"fixture verification failed: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def load_json_compatible_yaml(path: Path) -> dict:
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        fail(f"cannot read {path}; only JSON-compatible YAML is accepted: {error}")
+    if not isinstance(document, dict):
+        fail(f"{path}: root must be an object")
+    return document
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--root",
+    type=Path,
+    default=Path(__file__).resolve().parent,
+    help="fixture root; defaults to this tests directory",
+)
+args = parser.parse_args()
+root = args.root.resolve()
+
+all_ids: set[str] = set()
+all_requests: set[str] = set()
+
+for filename, expected in (
+    ("routing-positive.yaml", "invoke"),
+    ("routing-negative.yaml", "do-not-invoke"),
+):
+    path = root / filename
+    document = load_json_compatible_yaml(path)
+
+    if document.get("schema_version") != 1:
+        fail(f"{filename}: schema_version must be 1")
+    cases = document.get("cases")
+    if not isinstance(cases, list) or len(cases) < 5:
+        fail(f"{filename}: at least five cases are required")
+
+    for case in cases:
+        if not isinstance(case, dict):
+            fail(f"{filename}: each case must be an object")
+        case_id = case.get("id")
+        request = case.get("request")
+        reason = case.get("reason")
+        if not all(isinstance(value, str) and value.strip() for value in (case_id, request, reason)):
+            fail(f"{filename}: id, request and reason are required")
+        if case.get("expected") != expected:
+            fail(f"{case_id}: expected must be {expected}")
+        if case_id in all_ids:
+            fail(f"duplicate case id: {case_id}")
+        if request in all_requests:
+            fail(f"duplicate request across routing fixtures: {request}")
+        all_ids.add(case_id)
+        all_requests.add(request)
+
+case_root = root / "output-cases"
+case_directories = sorted(path for path in case_root.iterdir() if path.is_dir())
+if not case_directories:
+    fail("at least one output case is required")
+
+for case in case_directories:
+    required = (
+        "request.md",
+        "source-packet.md",
+        "fact-ledger.md",
+        "author-contract.yaml",
+        "cold-reader-packet.yaml",
+        "coverage-reviewer-packet.yaml",
+        "draft.md",
+        "oracle.yaml",
+    )
+    for filename in required:
+        path = case / filename
+        if not path.is_file() or not path.read_text(encoding="utf-8").strip():
+            fail(f"{case.name}: missing or empty {filename}")
+
+    document_contract = load_json_compatible_yaml(case / "author-contract.yaml")
+    for field in ("primary_reader", "entry_state", "exit_outcomes", "reading_mode", "scope", "mainline"):
+        if field not in document_contract or not document_contract[field]:
+            fail(f"{case.name}: author contract {field} is required")
+    if document_contract["reading_mode"] not in {"linear", "lookup", "hybrid"}:
+        fail(f"{case.name}: invalid reading_mode")
+
+    cold = load_json_compatible_yaml(case / "cold-reader-packet.yaml")
+    coverage = load_json_compatible_yaml(case / "coverage-reviewer-packet.yaml")
+    cold_fields = {
+        "schema_version", "role", "primary_reader", "entry_state", "exit_outcomes",
+        "reading_mode", "reading_order", "draft_paths",
+    }
+    coverage_fields = {
+        "schema_version", "role", "scope", "fact_ledger_path", "sources",
+        "draft_paths", "evidence_levels",
+    }
+    if set(cold) != cold_fields or cold.get("role") != "cold-reader":
+        fail(f"{case.name}: cold-reader packet must contain only its role whitelist")
+    if set(coverage) != coverage_fields or coverage.get("role") != "coverage-reviewer":
+        fail(f"{case.name}: coverage packet must contain only its role whitelist")
+    if any(field in cold for field in ("mainline", "scope", "fact_ledger_path", "sources", "oracle")):
+        fail(f"{case.name}: cold-reader packet leaks author or coverage data")
+    if any(field in coverage for field in ("mainline", "entry_state", "reading_order", "oracle")):
+        fail(f"{case.name}: coverage packet leaks author or cold-reader data")
+    for shared in ("primary_reader", "entry_state", "exit_outcomes", "reading_mode"):
+        if cold[shared] != document_contract[shared]:
+            fail(f"{case.name}: cold-reader {shared} differs from author contract")
+    if coverage["scope"] != document_contract["scope"]:
+        fail(f"{case.name}: coverage scope differs from author contract")
+    if cold["draft_paths"] != ["draft.md"] or coverage["draft_paths"] != ["draft.md"]:
+        fail(f"{case.name}: both roles must review only draft.md")
+    if coverage["fact_ledger_path"] != "fact-ledger.md":
+        fail(f"{case.name}: coverage packet must use fact-ledger.md")
+    if not isinstance(coverage["sources"], list) or not coverage["sources"]:
+        fail(f"{case.name}: coverage sources must be non-empty")
+    for source_entry in coverage["sources"]:
+        if not isinstance(source_entry, dict) or set(source_entry) != {"path", "range"}:
+            fail(f"{case.name}: every coverage source needs only path and range")
+        if not all(isinstance(source_entry[field], str) and source_entry[field] for field in source_entry):
+            fail(f"{case.name}: coverage source path and range must be non-empty strings")
+
+    oracle = load_json_compatible_yaml(case / "oracle.yaml")
+    expected = oracle.get("expected_findings")
+    if not isinstance(expected, dict) or set(expected) != {"cold-reader", "coverage-reviewer"}:
+        fail(f"{case.name}: oracle must separate both reviewer roles")
+    if not all(isinstance(expected[role], list) and expected[role] for role in expected):
+        fail(f"{case.name}: each oracle role needs at least one finding")
+    allowed_finding_kinds = {
+        "cold-reader": {"conceptual-gap", "exit-outcome-missing", "navigation-friction"},
+        "coverage-reviewer": {"factual-conflict", "source-omission", "status-drift"},
+    }
+    for role, findings in expected.items():
+        for finding in findings:
+            if not isinstance(finding, dict) or finding.get("kind") not in allowed_finding_kinds[role]:
+                fail(f"{case.name}: oracle finding is outside {role} responsibility")
+            for field in ("id", "location", "summary"):
+                if not isinstance(finding.get(field), str) or not finding[field].strip():
+                    fail(f"{case.name}: {role} oracle finding requires {field}")
+
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in case.iterdir() if path.is_file())
+    if any(marker in combined for marker in ("TODO", "TBD", "FILL_ME")):
+        fail(f"{case.name}: unfinished placeholder found")
+
+    with tempfile.TemporaryDirectory(prefix="review-packet-test-") as temp_name:
+        output = Path(temp_name) / "prepared"
+        result = subprocess.run(
+            [sys.executable, str(root / "prepare-review-packets"), str(case), str(output)],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode:
+            fail(f"{case.name}: packet preparation failed: {result.stderr.strip()}")
+        cold_files = {path.name for path in (output / "cold-reader").iterdir()}
+        coverage_files = {path.name for path in (output / "coverage-reviewer").iterdir()}
+        if cold_files != {"packet.yaml", "draft.md"}:
+            fail(f"{case.name}: prepared cold-reader packet is not isolated: {sorted(cold_files)}")
+        if coverage_files != {"packet.yaml", "draft.md", "fact-ledger.md", "source-packet.md"}:
+            fail(f"{case.name}: prepared coverage packet is not isolated: {sorted(coverage_files)}")
+        prepared_cold = load_json_compatible_yaml(output / "cold-reader" / "packet.yaml")
+        prepared_coverage = load_json_compatible_yaml(output / "coverage-reviewer" / "packet.yaml")
+        cold_root = (output / "cold-reader").resolve()
+        for relative in prepared_cold["draft_paths"]:
+            candidate = (cold_root / relative).resolve()
+            if not candidate.is_file() or cold_root not in candidate.parents:
+                fail(f"{case.name}: prepared cold-reader path is not locally resolvable: {relative}")
+        coverage_root = (output / "coverage-reviewer").resolve()
+        coverage_paths = [
+            prepared_coverage["fact_ledger_path"],
+            *prepared_coverage["draft_paths"],
+            *(entry["path"] for entry in prepared_coverage["sources"]),
+        ]
+        for relative in coverage_paths:
+            candidate = (coverage_root / relative).resolve()
+            if not candidate.is_file() or coverage_root not in candidate.parents:
+                fail(f"{case.name}: prepared coverage path is not locally resolvable: {relative}")
+        ledger_text = (coverage_root / prepared_coverage["fact_ledger_path"]).read_text(encoding="utf-8")
+        for source_name, anchor in re.findall(r"`([^`#]+)#([^`]+)`", ledger_text):
+            source_text = (coverage_root / source_name).read_text(encoding="utf-8")
+            if f'id="{anchor}"' not in source_text:
+                fail(f"{case.name}: ledger source anchor is missing: {source_name}#{anchor}")
+        record = load_json_compatible_yaml(output / "review-record.yaml")
+        if record.get("model_reviews_run") is not False or record.get("rounds") != []:
+            fail(f"{case.name}: deterministic preparation must record model reviews as not run")
+
+print(f"verified {len(all_ids)} routing cases and {len(case_directories)} output case(s)")

@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+"""Synchronize lock-pinned GitHub files as a rollback-safe batch."""
+
+from __future__ import annotations
+
+import hashlib
+import os
+import shutil
+import sys
+import tempfile
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
+from typing import Callable
+
+from upstream_lock import LockedFile, LockedSource, load_lock, validate_lock, verify_snapshot
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SKILL_ROOT = ROOT / "skills" / "repository-documentation-workflow"
+LOCK_PATH = SKILL_ROOT / "UPSTREAM.lock.yaml"
+
+
+class SyncError(RuntimeError):
+    """Report a failed sync after preserving or restoring the target snapshot."""
+
+
+def download_file(source: LockedSource, item: LockedFile) -> bytes:
+    """Download one file from its exact GitHub commit."""
+    quoted_path = "/".join(urllib.parse.quote(part, safe="") for part in item.upstream_path.parts)
+    url = (
+        f"https://raw.githubusercontent.com/{source.owner}/{source.repository_name}/"
+        f"{source.commit}/{quoted_path}"
+    )
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "repository-documentation-workflow-sync/1"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return response.read()
+    except (urllib.error.URLError, TimeoutError) as error:
+        raise SyncError(f"cannot download {url}: {error}") from error
+
+
+def sync_upstreams(
+    lock: object,
+    skill_root: Path,
+    fetch_file: Callable[[LockedSource, LockedFile], bytes] = download_file,
+    *,
+    replace_file: Callable[[Path, Path], None] = os.replace,
+    post_verify: Callable[[], None] | None = None,
+) -> int:
+    """Preflight, stage, replace, and verify one all-or-rollback batch."""
+    try:
+        sources = validate_lock(lock, skill_root)
+    except ValueError as error:
+        raise SyncError(f"lock preflight failed: {error}") from error
+
+    staged_targets: list[tuple[Path, Path]] = []
+    with tempfile.TemporaryDirectory(
+        prefix=".repository-documentation-upstreams-",
+        dir=skill_root.parent,
+    ) as temp_name:
+        temp_root = Path(temp_name)
+        staged_root = temp_root / "staged"
+        backup_root = temp_root / "backup"
+
+        for source in sources:
+            for item in source.files:
+                content = fetch_file(source, item)
+                actual = hashlib.sha256(content).hexdigest()
+                if actual != item.sha256:
+                    raise SyncError(
+                        f"hash mismatch for {source.source_id}:{item.upstream_path}: "
+                        f"expected {item.sha256}, got {actual}"
+                    )
+                staged = staged_root.joinpath(*item.vendored_path.parts)
+                staged.parent.mkdir(parents=True, exist_ok=True)
+                staged.write_bytes(content)
+                staged_targets.append((staged, skill_root.joinpath(*item.vendored_path.parts)))
+
+        for _staged, destination in staged_targets:
+            backup = backup_root / destination.relative_to(skill_root)
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(destination, backup)
+
+        try:
+            for staged, destination in staged_targets:
+                replace_file(staged, destination)
+            if post_verify is None:
+                verify_snapshot(lock, skill_root)
+            else:
+                post_verify()
+        except BaseException as error:
+            rollback_errors = []
+            for _staged, destination in staged_targets:
+                backup = backup_root / destination.relative_to(skill_root)
+                try:
+                    os.replace(backup, destination)
+                except OSError as rollback_error:
+                    rollback_errors.append(f"{destination}: {rollback_error}")
+            detail = f"; rollback errors: {'; '.join(rollback_errors)}" if rollback_errors else ""
+            raise SyncError(f"batch replacement failed and was rolled back: {error}{detail}") from error
+
+    return len(staged_targets)
+
+
+def main() -> int:
+    """Run the network-backed synchronization command."""
+    try:
+        lock = load_lock(LOCK_PATH)
+        count = sync_upstreams(lock, SKILL_ROOT)
+    except (OSError, SyncError, ValueError) as error:
+        print(f"upstream sync failed: {error}", file=sys.stderr)
+        return 1
+    print(f"synchronized {count} lock-pinned upstream files as one verified batch")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

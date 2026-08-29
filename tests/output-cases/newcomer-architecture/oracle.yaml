@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "fixture_intent": "负向成稿用于验证 reviewer 数据包与记录协议；确定性脚本不运行或模拟模型判断。",
+  "expected_findings": {
+    "cold-reader": [
+      {
+        "id": "C1",
+        "kind": "conceptual-gap",
+        "location": "draft.md#一次任务的路径",
+        "summary": "正文从 task_log 跳到 worker，没有引入 router 如何选择 queue，无法复述完整主路径。"
+      },
+      {
+        "id": "C2",
+        "kind": "exit-outcome-missing",
+        "location": "draft.md#验证状态",
+        "summary": "只写已覆盖测试，没有说明尚未验证的边界。"
+      }
+    ],
+    "coverage-reviewer": [
+      {
+        "id": "V1",
+        "kind": "factual-conflict",
+        "location": "draft.md#一次任务的路径",
+        "source": "source-packet.md#S4",
+        "fact_id": "F3",
+        "summary": "成稿声称 receipt-api 查询 worker 内存，来源规定它只读 result_store。"
+      },
+      {
+        "id": "V2",
+        "kind": "source-omission",
+        "location": "draft.md#验证状态",
+        "source": "source-packet.md#S9",
+        "fact_id": "F6",
+        "summary": "成稿遗漏压力、跨可用区恢复和生产演练尚未执行。"
+      }
+    ]
+  }
+}
