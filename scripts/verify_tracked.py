@@ -24,6 +24,7 @@ def verify_tracked_delivery(repository_root: Path) -> int | None:
     )
     tracked = {Path(value.decode("utf-8")) for value in result.stdout.split(b"\0") if value}
     delivery_roots = (
+        repository_root / ".codex-plugin",
         repository_root / "scripts",
         repository_root / "skills" / "repository-documentation-workflow",
         repository_root / "tests",

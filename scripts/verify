@@ -20,6 +20,7 @@ if [ -z "$validator" ]; then
   fi
 fi
 python3 "$repository_root/scripts/verify_skill_schema.py" "$skill_root"
+python3 "$repository_root/scripts/verify_distribution.py" "$repository_root"
 python3 "$repository_root/scripts/verify_tracked.py" "$repository_root"
 
 if [ -n "$validator" ] && [ -f "$validator" ] && python3 -c 'import yaml' >/dev/null 2>&1; then
