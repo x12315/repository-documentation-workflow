@@ -22,6 +22,15 @@ REQUIRED_EVIDENCE = (
     "draft.md",
     "skill-change-summary.md",
 )
+AUTHOR_CONTRACT_FIELDS = (
+    "primary_reader",
+    "entry_state",
+    "exit_outcomes",
+    "reading_mode",
+    "scope",
+    "mainline",
+)
+READING_MODES = {"linear", "lookup", "hybrid"}
 
 
 def load_json_yaml(path: Path) -> dict:
@@ -96,6 +105,16 @@ def first_result_verdict(result_path: Path) -> str:
     raise ValueError(f"reviewer result has no verdict: {result_path}")
 
 
+def validate_author_contract(contract_path: Path) -> None:
+    """Validate the fixture-compatible minimum author contract schema."""
+    contract = load_json_yaml(contract_path)
+    for field in AUTHOR_CONTRACT_FIELDS:
+        if not contract.get(field):
+            raise ValueError(f"author contract {field} is required")
+    if contract["reading_mode"] not in READING_MODES:
+        raise ValueError("author contract has invalid reading_mode")
+
+
 def validate_forward_run(run_root: Path, expected_version: str) -> int:
     """Validate one recorded run and return its number of reviewer results."""
     if run_root.is_symlink():
@@ -117,7 +136,9 @@ def validate_forward_run(run_root: Path, expected_version: str) -> int:
     require_nonempty_string(author, "model", "record.author")
     resolve_evidence_path(run_root, author.get("report_path"), "record.author.report_path")
     for evidence_path in REQUIRED_EVIDENCE:
-        resolve_evidence_path(run_root, evidence_path, f"required evidence {evidence_path}")
+        resolved_evidence = resolve_evidence_path(run_root, evidence_path, f"required evidence {evidence_path}")
+        if evidence_path == "author-contract.yaml":
+            validate_author_contract(resolved_evidence)
 
     rounds = record.get("rounds")
     if not isinstance(rounds, list) or not rounds:

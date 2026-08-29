@@ -27,7 +27,17 @@ class ForwardRunValidationTest(unittest.TestCase):
         (run_root / "author-report.md").write_text("author self-check\n", encoding="utf-8")
         (author_input / "request.md").write_text("author request\n", encoding="utf-8")
         (author_input / "source-packet.md").write_text("author source packet\n", encoding="utf-8")
-        (run_root / "author-contract.yaml").write_text("{}\n", encoding="utf-8")
+        (run_root / "author-contract.yaml").write_text(
+            json.dumps({
+                "primary_reader": "newcomer",
+                "entry_state": "needs an overview",
+                "exit_outcomes": ["understands the architecture"],
+                "reading_mode": "hybrid",
+                "scope": "architecture overview",
+                "mainline": "follow one request",
+            }),
+            encoding="utf-8",
+        )
         (run_root / "fact-ledger.md").write_text("fact ledger\n", encoding="utf-8")
         (run_root / "draft.md").write_text("draft\n", encoding="utf-8")
         (run_root / "skill-change-summary.md").write_text("summary\n", encoding="utf-8")
@@ -74,6 +84,14 @@ class ForwardRunValidationTest(unittest.TestCase):
         """Persist a modified JSON-compatible YAML record."""
         (run_root / "record.yaml").write_text(json.dumps(record), encoding="utf-8")
 
+    def load_author_contract(self, run_root: Path) -> dict:
+        """Load the JSON-compatible author contract under test."""
+        return json.loads((run_root / "author-contract.yaml").read_text(encoding="utf-8"))
+
+    def write_author_contract(self, run_root: Path, contract: dict) -> None:
+        """Persist a modified JSON-compatible author contract."""
+        (run_root / "author-contract.yaml").write_text(json.dumps(contract), encoding="utf-8")
+
     def test_rejects_duplicate_reviewer_id_within_a_run(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             run_root = self.write_run(Path(temporary_directory))
@@ -98,6 +116,38 @@ class ForwardRunValidationTest(unittest.TestCase):
             run_root = self.write_run(Path(temporary_directory))
 
             self.assertEqual(2, validate_forward_run(run_root, "0.1.0"))
+
+    def test_rejects_an_empty_author_contract_object(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            run_root = self.write_run(Path(temporary_directory))
+            self.write_author_contract(run_root, {})
+
+            with self.assertRaisesRegex(ValueError, "primary_reader is required"):
+                validate_forward_run(run_root, "0.1.0")
+
+    def test_rejects_missing_or_empty_author_contract_fields(self) -> None:
+        for field, value in (("scope", None), ("mainline", "")):
+            with self.subTest(field=field, value=value), tempfile.TemporaryDirectory() as temporary_directory:
+                run_root = self.write_run(Path(temporary_directory))
+                contract = self.load_author_contract(run_root)
+                if value is None:
+                    del contract[field]
+                else:
+                    contract[field] = value
+                self.write_author_contract(run_root, contract)
+
+                with self.assertRaisesRegex(ValueError, f"{field} is required"):
+                    validate_forward_run(run_root, "0.1.0")
+
+    def test_rejects_an_invalid_author_contract_reading_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            run_root = self.write_run(Path(temporary_directory))
+            contract = self.load_author_contract(run_root)
+            contract["reading_mode"] = "random"
+            self.write_author_contract(run_root, contract)
+
+            with self.assertRaisesRegex(ValueError, "invalid reading_mode"):
+                validate_forward_run(run_root, "0.1.0")
 
     def test_rejects_a_missing_required_evidence_file(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
