@@ -8,12 +8,16 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import smoke_agent_skills_install  # noqa: E402
 from smoke_agent_skills_install import install_and_verify  # noqa: E402
 
 
@@ -44,7 +48,7 @@ class AgentSkillsInstallTest(unittest.TestCase):
                 ],
                 command,
             )
-            self.assertEqual({"check": True, "cwd": consumer_root}, kwargs)
+            self.assertEqual({"check": True, "cwd": consumer_root, "timeout": 180}, kwargs)
             shutil.copytree(
                 ROOT / "skills" / SKILL_NAME,
                 consumer_root / ".agents" / "skills" / SKILL_NAME,
@@ -87,6 +91,20 @@ class AgentSkillsInstallTest(unittest.TestCase):
 
                 with self.assertRaises(ValueError):
                     install_and_verify(ROOT, runner)
+
+    def test_timeout_propagates_from_runner_and_main_returns_nonzero(self) -> None:
+        def timed_out_runner(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[object]:
+            raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+        with self.assertRaises(subprocess.TimeoutExpired):
+            install_and_verify(ROOT, timed_out_runner)
+
+        error_output = StringIO()
+        timeout = subprocess.TimeoutExpired(["npx"], 180)
+        with mock.patch.object(smoke_agent_skills_install, "install_and_verify", side_effect=timeout):
+            with redirect_stderr(error_output):
+                self.assertEqual(1, smoke_agent_skills_install.main())
+        self.assertIn("timed out", error_output.getvalue())
 
 
 if __name__ == "__main__":

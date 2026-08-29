@@ -17,6 +17,8 @@ from verify_skill_schema import validate_skill_schema
 SKILL_NAME = "repository-documentation-workflow"
 SKILLS_CLI = "skills@1.5.23"
 MINIMUM_NODE_VERSION = (22, 20)
+CLI_PROBE_TIMEOUT_SECONDS = 10
+INSTALL_TIMEOUT_SECONDS = 180
 NODE_VERSION_RE = re.compile(r"v(\d+)\.(\d+)\.\d+\s*\Z")
 
 
@@ -27,6 +29,7 @@ def _check_cli_versions() -> None:
         check=True,
         capture_output=True,
         text=True,
+        timeout=CLI_PROBE_TIMEOUT_SECONDS,
     )
     match = NODE_VERSION_RE.fullmatch(node.stdout)
     if match is None:
@@ -39,6 +42,7 @@ def _check_cli_versions() -> None:
         check=True,
         capture_output=True,
         text=True,
+        timeout=CLI_PROBE_TIMEOUT_SECONDS,
     )
 
 
@@ -83,7 +87,7 @@ def install_and_verify(
             "--copy",
             "--yes",
         ]
-        runner(command, check=True, cwd=consumer_root)
+        runner(command, check=True, cwd=consumer_root, timeout=INSTALL_TIMEOUT_SECONDS)
         installed_root = consumer_root / ".agents" / "skills" / SKILL_NAME
         installed_inventory = _file_inventory(installed_root)
         try:
@@ -102,6 +106,12 @@ def main() -> int:
     """Run the Agent Skills CLI smoke test for this repository."""
     try:
         count = install_and_verify(Path(__file__).resolve().parents[1])
+    except subprocess.TimeoutExpired as error:
+        print(
+            f"Agent Skills CLI installation smoke test timed out after {error.timeout} seconds: {error.cmd}",
+            file=sys.stderr,
+        )
+        return 1
     except (OSError, subprocess.CalledProcessError, UnicodeError, ValueError) as error:
         print(f"Agent Skills CLI installation smoke test failed: {error}", file=sys.stderr)
         return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
