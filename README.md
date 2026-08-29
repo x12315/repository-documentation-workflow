@@ -89,6 +89,14 @@ tests/                                    路由边界和输出审查案例
 
 `references/upstream/` 中的第三方 prompt/Skill 文件只作为固定 provenance 快照保留，不由运行时工作流加载为指令。本 Skill 采用的原则位于自有 reference，更新上游快照不会自动改变运行行为。
 
+## 待办
+
+- [ ] 平衡文档体系完整性与单篇文档克制性。后续设计应让 scope 内的重要事实在整个文档
+  体系中具有唯一、可达的权威归宿，同时只把读者当前必须知道的内容放进单篇正文；允许用
+  reference、短链或具有独立身份的新文档承接细节。Coverage review 应检查体系级可达性，
+  cold-reader review 应同时检查 first-pass 主线是否被查阅细节、重复说明或过早出现的概念
+  淹没，并用同时覆盖“事实成为孤儿”和“正文过载”的行为案例验证改动。
+
 ## 许可证
 
 本仓库自有内容采用 Apache-2.0。固定的第三方内容、来源、commit、hash 和许可证见 [`THIRD_PARTY_NOTICES.md`](skills/repository-documentation-workflow/THIRD_PARTY_NOTICES.md) 与 [`UPSTREAM.lock.yaml`](skills/repository-documentation-workflow/UPSTREAM.lock.yaml)。
