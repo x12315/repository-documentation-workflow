@@ -22,7 +22,7 @@ class DistributionTest(unittest.TestCase):
             with self.subTest(version=version):
                 self.assertIsNotNone(SEMVER_RE.fullmatch(version))
 
-        for version in ("1.0.0-01", "1.0.0-.", "1.0.0-alpha..1"):
+        for version in ("1.0.0-01", "1.0.0-.", "1.0.0-alpha..1", "1١.0.0", "1.0.0-١a"):
             with self.subTest(version=version):
                 self.assertIsNone(SEMVER_RE.fullmatch(version))
 
