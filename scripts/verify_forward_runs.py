@@ -111,7 +111,8 @@ def validate_author_contract(contract_path: Path) -> None:
     for field in AUTHOR_CONTRACT_FIELDS:
         if not contract.get(field):
             raise ValueError(f"author contract {field} is required")
-    if contract["reading_mode"] not in READING_MODES:
+    mode = contract["reading_mode"]
+    if not isinstance(mode, str) or mode not in READING_MODES:
         raise ValueError("author contract has invalid reading_mode")
 
 

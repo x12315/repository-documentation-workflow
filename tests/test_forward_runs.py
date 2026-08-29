@@ -4,15 +4,19 @@
 from __future__ import annotations
 
 import json
+import io
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import verify_forward_runs  # noqa: E402
 from verify_forward_runs import validate_forward_run, validate_version_root  # noqa: E402
 
 
@@ -148,6 +152,38 @@ class ForwardRunValidationTest(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "invalid reading_mode"):
                 validate_forward_run(run_root, "0.1.0")
+
+    def test_rejects_non_string_author_contract_reading_modes(self) -> None:
+        for mode in (["hybrid"], {"mode": "hybrid"}):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary_directory:
+                run_root = self.write_run(Path(temporary_directory))
+                contract = self.load_author_contract(run_root)
+                contract["reading_mode"] = mode
+                self.write_author_contract(run_root, contract)
+
+                with self.assertRaisesRegex(ValueError, "invalid reading_mode"):
+                    validate_forward_run(run_root, "0.1.0")
+
+    def test_cli_reports_malformed_reading_mode_without_a_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repository_root = Path(temporary_directory) / "repository"
+            version_root = repository_root / "tests/forward-runs/0.1.0"
+            version_root.mkdir(parents=True)
+            run_root = self.write_run(version_root)
+            contract = self.load_author_contract(run_root)
+            contract["reading_mode"] = ["hybrid"]
+            self.write_author_contract(run_root, contract)
+            stderr = io.StringIO()
+
+            with (
+                patch.object(verify_forward_runs, "validate_plugin_manifest", return_value="0.1.0"),
+                patch.object(sys, "argv", ["verify_forward_runs.py", str(repository_root)]),
+                redirect_stderr(stderr),
+            ):
+                self.assertEqual(1, verify_forward_runs.main())
+
+            self.assertIn("forward-run verification failed", stderr.getvalue())
+            self.assertNotIn("Traceback", stderr.getvalue())
 
     def test_rejects_a_missing_required_evidence_file(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
