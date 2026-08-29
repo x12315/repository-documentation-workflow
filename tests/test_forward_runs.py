@@ -113,6 +113,18 @@ class ForwardRunValidationTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "symlink"):
                 validate_version_root(version_root, "0.1.0")
 
+    def test_rejects_a_symlinked_version_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            outside_version_root = root / "outside/0.1.0"
+            outside_version_root.mkdir(parents=True)
+            version_root = root / "tests/forward-runs/0.1.0"
+            version_root.parent.mkdir(parents=True)
+            version_root.symlink_to(outside_version_root, target_is_directory=True)
+
+            with self.assertRaisesRegex(ValueError, "symlink"):
+                validate_version_root(version_root, "0.1.0")
+
 
 if __name__ == "__main__":
     unittest.main()

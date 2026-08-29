@@ -146,6 +146,8 @@ def validate_forward_run(run_root: Path, expected_version: str) -> int:
 
 def validate_version_root(version_root: Path, expected_version: str) -> tuple[int, int]:
     """Validate direct run directories below one resolved version evidence root."""
+    if version_root.is_symlink():
+        raise ValueError(f"forward-run version root must not be a symlink: {version_root.name}")
     if not version_root.is_dir():
         raise ValueError(f"forward-run evidence is missing for version {expected_version}")
     resolved_version_root = version_root.resolve()
