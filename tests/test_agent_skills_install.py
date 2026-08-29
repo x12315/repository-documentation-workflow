@@ -6,7 +6,6 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
-import tempfile
 import unittest
 from contextlib import redirect_stderr
 from io import StringIO
