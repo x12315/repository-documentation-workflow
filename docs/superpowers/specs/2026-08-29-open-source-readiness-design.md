@@ -29,16 +29,15 @@
 ```text
 仓库根
 ├── .codex-plugin/plugin.json             OpenAI plugin manifest
-├── .agents/plugins/marketplace.json      repo-scoped 本地 plugin 目录
 ├── skills/
 │   └── repository-documentation-workflow/ 唯一 Skill 源码
 ├── scripts/                               确定性维护与验证入口
 └── tests/                                 路由、输出案例和 forward test 记录
 ```
 
-`.codex-plugin/plugin.json` 至少声明稳定名称、`0.1.0` 版本、描述、Apache-2.0 许可证和 `./skills/` 入口。可选的作者、主页、仓库和视觉资产字段只有在真实值存在时才加入。
+`.codex-plugin/plugin.json` 声明稳定名称、`0.1.0` 版本、描述、Apache-2.0 许可证、`./skills/` 入口、非占位的贡献者身份和必要的 interface 字段。主页、仓库 URL 和视觉资产只有在真实值存在时才加入。
 
-`.agents/plugins/marketplace.json` 为本仓库提供可重复的本地发现入口。其 source 指向当前仓库的 plugin 根，不复制文件，也不要求用户修改个人 marketplace。
+`plugin-creator` 的 repo marketplace 只接受 `./plugins/<name>` 结构，不能把仓库根声明为本地 plugin source。为保留根 plugin 和唯一 Skill 源码，仓库不提交不受支持的 marketplace 条目；安装 smoke test 在临时目录创建标准 `plugins/<name>` 布局和 marketplace，正式远程 marketplace 等仓库 URL 存在后再加入。
 
 Agent Skills CLI 继续从仓库的 `skills/repository-documentation-workflow/` 安装。README 把两条渠道写成并列选择，并说明各自适用的宿主范围、安装命令和更新方式。
 
@@ -117,7 +116,7 @@ README 不做脱离事实的整体重写，只补充本轮产生的新公开契�
 `scripts/verify` 继续作为唯一完整入口，并增加以下检查：
 
 - plugin manifest schema、路径边界和 Skill inventory；
-- marketplace schema、source 路径和 plugin 名称一致性；
+- 临时 marketplace schema、source 路径和 plugin 名称一致性；
 - manifest、CHANGELOG 和 forward run 的版本一致性；
 - 开源文档与模板的本地链接；
 - forward run 记录具备两个角色、不同 reviewer 标识、原始结果路径和实际 verdict；
@@ -140,7 +139,7 @@ README 不做脱离事实的整体重写，只补充本轮产生的新公开契�
 安装 smoke test 使用临时目录和隔离配置：
 
 1. Agent Skills CLI 从本地仓库安装指定 Skill 到临时消费仓库，检查实际安装文件与 schema。
-2. OpenAI plugin 通过 repo marketplace 验证 manifest 可发现、plugin 路径可解析、所含 Skill 与源码 inventory 一致。
+2. OpenAI plugin 在临时标准 marketplace 布局中验证 manifest 可发现、plugin 路径可解析、所含 Skill 与源码 inventory 一致。
 3. 若当前宿主不能自动完成 ChatGPT 桌面安装，只把结构和 CLI 可覆盖部分记为自动通过，并在发布检查单保留人工安装步骤。
 
 网络、外部 CLI 或宿主能力不可用时，对应层明确记录为“未执行”；不得用 manifest 文件存在替代真实安装结果。
