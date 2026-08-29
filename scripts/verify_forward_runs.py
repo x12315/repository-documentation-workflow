@@ -144,13 +144,20 @@ def validate_forward_run(run_root: Path, expected_version: str) -> int:
     return reviewer_count
 
 
-def validate_version_root(version_root: Path, expected_version: str) -> tuple[int, int]:
-    """Validate direct run directories below one resolved version evidence root."""
+def validate_version_root(
+    version_root: Path, expected_version: str, repository_root: Path
+) -> tuple[int, int]:
+    """Validate direct run directories below a version root inside one repository."""
     if version_root.is_symlink():
         raise ValueError(f"forward-run version root must not be a symlink: {version_root.name}")
-    if not version_root.is_dir():
-        raise ValueError(f"forward-run evidence is missing for version {expected_version}")
+    resolved_repository_root = repository_root.resolve()
     resolved_version_root = version_root.resolve()
+    try:
+        resolved_version_root.relative_to(resolved_repository_root)
+    except ValueError as error:
+        raise ValueError("forward-run version root leaves repository root") from error
+    if not resolved_version_root.is_dir():
+        raise ValueError(f"forward-run evidence is missing for version {expected_version}")
     candidates = sorted(path for path in version_root.iterdir() if path.is_dir() or path.is_symlink())
     if not candidates:
         raise ValueError(f"no forward runs recorded for version {expected_version}")
@@ -177,7 +184,7 @@ def main() -> int:
     try:
         version = validate_plugin_manifest(repository_root)
         version_root = repository_root / "tests" / "forward-runs" / version
-        run_count, reviewer_count = validate_version_root(version_root, version)
+        run_count, reviewer_count = validate_version_root(version_root, version, repository_root)
     except ValueError as error:
         print(f"forward-run verification failed: {error}", file=sys.stderr)
         return 1

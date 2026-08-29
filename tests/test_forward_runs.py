@@ -111,7 +111,7 @@ class ForwardRunValidationTest(unittest.TestCase):
             (version_root / "escaped-run").symlink_to(outside_run, target_is_directory=True)
 
             with self.assertRaisesRegex(ValueError, "symlink"):
-                validate_version_root(version_root, "0.1.0")
+                validate_version_root(version_root, "0.1.0", root)
 
     def test_rejects_a_symlinked_version_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -123,7 +123,21 @@ class ForwardRunValidationTest(unittest.TestCase):
             version_root.symlink_to(outside_version_root, target_is_directory=True)
 
             with self.assertRaisesRegex(ValueError, "symlink"):
-                validate_version_root(version_root, "0.1.0")
+                validate_version_root(version_root, "0.1.0", root)
+
+    def test_rejects_a_version_root_reached_through_a_symlinked_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository_root = root / "repository"
+            repository_root.mkdir()
+            outside_tests = root / "outside-tests"
+            version_root = outside_tests / "forward-runs/0.1.0"
+            version_root.mkdir(parents=True)
+            self.write_run(version_root)
+            (repository_root / "tests").symlink_to(outside_tests, target_is_directory=True)
+
+            with self.assertRaisesRegex(ValueError, "leaves repository"):
+                validate_version_root(repository_root / "tests/forward-runs/0.1.0", "0.1.0", repository_root)
 
 
 if __name__ == "__main__":
