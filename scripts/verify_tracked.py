@@ -24,7 +24,9 @@ def verify_tracked_delivery(repository_root: Path) -> int | None:
     )
     tracked = {Path(value.decode("utf-8")) for value in result.stdout.split(b"\0") if value}
     delivery_roots = (
+        repository_root / ".github",
         repository_root / ".codex-plugin",
+        repository_root / "docs",
         repository_root / "scripts",
         repository_root / "skills" / "repository-documentation-workflow",
         repository_root / "tests",
@@ -35,7 +37,15 @@ def verify_tracked_delivery(repository_root: Path) -> int | None:
         for path in root.rglob("*")
         if path.is_file() and "__pycache__" not in path.parts and path.suffix not in {".pyc", ".pyo"}
     }
-    expected.update({Path(".gitignore"), Path("LICENSE"), Path("README.md")})
+    expected.update({
+        Path(".gitignore"),
+        Path("LICENSE"),
+        Path("README.md"),
+        Path("CHANGELOG.md"),
+        Path("CODE_OF_CONDUCT.md"),
+        Path("CONTRIBUTING.md"),
+        Path("SECURITY.md"),
+    })
 
     untracked = sorted(expected - tracked)
     missing = sorted(path for path in tracked if not (repository_root / path).exists())

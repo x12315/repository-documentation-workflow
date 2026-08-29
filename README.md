@@ -1,102 +1,104 @@
 # Repository Documentation Workflow
 
-这是一个面向仓库文档的 Codex Skill。它把文档写作拆成四个可验证对象：读者契约、事实账本、认知路径和独立审查，目标是让不了解项目的人尽快建立正确的项目模型，同时不遗漏有证据支持的设计细节。
+`repository-documentation-workflow` 是一个面向仓库文档的 Codex Skill。它在创建或实质性重写 README、ADR、架构与设计说明、tutorial、how-to、reference、playbook 和 runbook 时，先核实项目事实，再组织读者的理解路径。
 
-## 适用范围
+它不用于轻微校对、代码注释、PR/commit/issue 文案或 Agent 指令文件。若任务同时包含代码与文档，流程只作用于文档部分，不扩大原任务的权限或文件范围。
 
-Skill 自动用于创建或实质性重写 README、ADR、架构与设计说明、tutorial、how-to、reference、playbook 和 runbook。轻微校对、代码注释、PR/commit/issue 文案以及 Agent 指令文件不进入该流程。
+## 当前发布状态
 
-它会先回答以下问题，再写正文：
+| 项目 | 状态 |
+| --- | --- |
+| 版本表面 | `.codex-plugin/plugin.json` 与 `CHANGELOG.md` 记录为 `0.1.0`。 |
+| Agent Skills CLI | 已用隔离的临时消费仓库完成真实 copy-install smoke，并核对安装副本的 schema 与文件内容。 |
+| OpenAI plugin | 根目录 manifest 已准备；尚未发布公开 marketplace，不能提供公开安装 URL 或命令。 |
+| Git 发布 | 当前没有 remote、tag 或正式 release。 |
 
-- 谁是主要读者，开始阅读时已经知道什么？
-- 读完后应该能回答哪些问题、做出哪些判断或完成哪些动作？
-- 文档应从头阅读、按需查阅，还是先建立全局模型再查细节？
-- 哪些项目事实必须进入文档，它们各自由什么证据支持？
-
-成稿随后交给两个 fresh-context reviewer：cold-reader 只检查阅读体验和主线，coverage reviewer 依据事实账本和来源检查准确性与覆盖率。
+因此，首次使用请选择下方可验证的 Agent Skills CLI 路径。plugin 的人工安装与发布前检查见 [`docs/releasing.md`](docs/releasing.md)。
 
 ## 安装
 
-本地开发时，将源码仓库与消费仓库放在同一父目录，在消费仓库中运行：
+### Agent Skills CLI（当前可验证）
+
+将源码 checkout 与消费仓库放在同一父目录。例如：
+
+```text
+workspace/
+├── consumer-repository/
+└── repository-documentation-workflow/
+```
+
+在 `consumer-repository/` 中运行：
 
 ```bash
-npx skills add ../repository-documentation-workflow \
+npx --yes skills@1.5.23 add ../repository-documentation-workflow \
   --skill repository-documentation-workflow \
-  --agent codex
+  --agent codex \
+  --copy \
+  --yes
 ```
 
-发布到 GitHub 后可以从远端安装：
+安装副本位于消费仓库的 `.agents/skills/repository-documentation-workflow/`。它是消费端产物；要更新，请在源码 checkout 修改后重新执行同一条安装命令。
 
-```bash
-npx skills add x12315/repository-documentation-workflow \
-  --skill repository-documentation-workflow \
-  --agent codex
-```
+### OpenAI plugin
 
-更新项目内已安装的副本：
-
-```bash
-npx skills update --project repository-documentation-workflow
-```
-
-安装目录是消费仓库的 `.agents/skills/repository-documentation-workflow/`。该目录是安装产物，不是源码；修改后应回到本仓库重新安装。
+仓库根目录已有 plugin manifest，且它与 Agent Skills CLI 共用 `skills/repository-documentation-workflow/` 这一份 Skill 源码。公开 marketplace 尚未发布，所以现在没有可验证的远程安装命令。发布前的官方 validator、人工安装和 metadata 检查边界见 [`docs/releasing.md`](docs/releasing.md)。
 
 ## 使用
 
-普通仓库文档任务可以自动触发，也可以显式调用：
+满足适用范围的仓库文档任务可自动触发，也可显式调用：
 
 ```text
 $repository-documentation-workflow
 ```
 
-Skill 只规定文档设计、写作和审查过程，不扩大当前任务的文件范围、权限或外部操作授权。
+流程围绕四个对象工作：
 
-## 开发与验证
+1. **读者契约**：明确主要读者、开始条件、阅读结果和阅读方式。
+2. **事实账本**：把可写入的主张逐项对应到代码、配置、测试或记录。
+3. **认知路径**：按读者理解依赖安排正文与查阅层。
+4. **独立审查**：由 cold-reader 检查可读性，由 coverage reviewer 检查事实覆盖和状态准确性。
 
-确定性完整验证入口：
+前一项确定文档应解决的问题；后两项防止成稿既难以阅读，又遗漏或升级项目事实。
+
+## 工作流
+
+推荐路径是：先定义文档契约，再建立事实账本；以账本组织主线和查阅层，最后由两个 fresh-context reviewer 分别审查。`SKILL.md` 还规定了适用范围、运行时 references 与最多三轮的审查收敛条件。
+
+这是一套文档流程，不是模型质量保证。确定性检查只能验证可重复的结构与边界；真实 reviewer 是否通过，必须由实际独立 context 的记录证明。
+
+## 验证边界
+
+完整确定性入口是：
 
 ```bash
 scripts/verify
 ```
 
-该入口始终运行与本发布 frontmatter 契约等价且更严格的 stdlib schema validator、Git tracked 交付边界、上游 schema/inventory/hash 校验、发布目录内链接边界、fixture 隔离检查和 regression tests。不支持的 YAML 形式会 fail closed。在 Git checkout 之外运行时会明确跳过 tracked 层。环境同时具有官方 `quick_validate.py` 和 PyYAML 时再叠加官方校验，并明确输出实际运行的验证层级；可用 `SKILL_QUICK_VALIDATE` 指定官方 validator 路径。
+它验证 Skill schema、plugin manifest、Git tracked 交付边界、上游快照、Markdown 本地链接、fixture 隔离与 forward-run 记录，并运行 regression tests。它不调用模型，也不会把 fixture 形状检查写成 reviewer PASS。
 
-单独校验固定上游快照：
+本仓库还保存了一次 `0.1.0` 的真实 forward review 证据，位于 `tests/forward-runs/0.1.0/newcomer-architecture/`；该证据仅覆盖其中记录的任务、模型和结果。测试资产与真实审查协议见 [`tests/README.md`](tests/README.md)。Agent Skills CLI 的真实安装 smoke 由 `scripts/smoke_agent_skills_install.py` 执行，并在 CI 中单独运行。
 
-```bash
-scripts/verify-upstreams
-```
+## 参与贡献与发布
 
-锁文件中的 commit 或 hash 经人工审核后，可同步上游文件：
-
-```bash
-scripts/sync-upstreams
-```
-
-`sync-upstreams` 只接受 `UPSTREAM.lock.yaml` 中的 GitHub commit 和 SHA-256。它先完成整个 lock schema 与 vendored inventory preflight，再下载并校验所有文件；批次替换或替换后校验失败时会恢复全部目标的原始字节。
-
-仓库中扩展名为 `.yaml` 的 lock 和 fixture 为保持 stdlib-only，只接受 JSON-compatible YAML，也就是可由 `json.loads` 直接解析的 YAML 子集。解析错误会明确报告这一限制。
+- [贡献指南](CONTRIBUTING.md)：环境、验证、上游快照与 PR 约定。
+- [发布指南](docs/releasing.md)：版本一致性、双通道验证及 remote/tag/release 的人工边界。
+- [安全策略](SECURITY.md)：安全范围与当前报告通道状态。
+- [行为准则](CODE_OF_CONDUCT.md)：社区参与契约与举报路径。
 
 ## 仓库结构
 
 ```text
-skills/repository-documentation-workflow/  Skill 及固定上游快照
-scripts/                                  同步与确定性验证
-tests/                                    路由边界和输出审查案例
+.codex-plugin/plugin.json                    OpenAI plugin manifest
+skills/repository-documentation-workflow/    唯一的 Skill 源码与固定上游快照
+scripts/                                     确定性校验、同步与安装 smoke
+tests/                                       fixture、regression tests 与 forward-review evidence
+docs/                                        发布与长期维护说明
 ```
 
-确定性脚本只检查测试资产、角色白名单和 packet 物理隔离，不运行模型，也不声称 fresh-context review 已通过。需要行为验证时，按 [`tests/README.md`](tests/README.md) 准备两个 reviewer 数据包、在独立 context 中运行并记录实际结果。
+## 暂缓能力
 
-`references/upstream/` 中的第三方 prompt/Skill 文件只作为固定 provenance 快照保留，不由运行时工作流加载为指令。本 Skill 采用的原则位于自有 reference，更新上游快照不会自动改变运行行为。
-
-## 待办
-
-- [ ] 平衡文档体系完整性与单篇文档克制性。后续设计应让 scope 内的重要事实在整个文档
-  体系中具有唯一、可达的权威归宿，同时只把读者当前必须知道的内容放进单篇正文；允许用
-  reference、短链或具有独立身份的新文档承接细节。Coverage review 应检查体系级可达性，
-  cold-reader review 应同时检查 first-pass 主线是否被查阅细节、重复说明或过早出现的概念
-  淹没，并用同时覆盖“事实成为孤儿”和“正文过载”的行为案例验证改动。
+“文档体系完整性与单篇文档克制性”的工作流扩展暂不属于 `0.1.0`。当前流程仍要求 scope 内事实有可达归宿，但没有把这一更广的体系级优化作为已实现能力。
 
 ## 许可证
 
-本仓库自有内容采用 Apache-2.0。固定的第三方内容、来源、commit、hash 和许可证见 [`THIRD_PARTY_NOTICES.md`](skills/repository-documentation-workflow/THIRD_PARTY_NOTICES.md) 与 [`UPSTREAM.lock.yaml`](skills/repository-documentation-workflow/UPSTREAM.lock.yaml)。
+本仓库自有内容采用 Apache-2.0。固定第三方内容的来源、commit、hash 与许可证见 [`THIRD_PARTY_NOTICES.md`](skills/repository-documentation-workflow/THIRD_PARTY_NOTICES.md) 和 [`UPSTREAM.lock.yaml`](skills/repository-documentation-workflow/UPSTREAM.lock.yaml)。

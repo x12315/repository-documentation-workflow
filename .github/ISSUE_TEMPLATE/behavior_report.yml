@@ -1,0 +1,37 @@
+name: Behavior report
+description: 报告 Skill 在模型执行中的行为与 reviewer evidence；请勿提交敏感输入。
+title: "behavior: "
+labels: ["behavior"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请隔离模型、输入和 reviewer evidence。不要粘贴凭据、私人路径、未授权仓库内容或敏感提示。
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望的可观察行为
+      description: 说明应满足的文档契约或验证边界。
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: 实际行为
+      description: 提供已脱敏的最小输入、输出摘要和模型/宿主版本。
+    validations:
+      required: true
+  - type: textarea
+    id: isolation
+    attributes:
+      label: 输入与 context 隔离
+      description: 说明 author、cold-reader 与 coverage reviewer 各自看到的资料，以及是否使用 fresh context。
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Reviewer 证据
+      description: 提供每个 reviewer 的 verdict、可公开的定位信息和实际运行轮次；不要把确定性 fixture 写成模型通过。
+    validations:
+      required: true

@@ -13,7 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from upstream_lock import validate_lock  # noqa: E402
-from verify_release import verify_local_markdown_links  # noqa: E402
+from verify_release import (  # noqa: E402
+    verify_local_markdown_links,
+    verify_repository_markdown_links,
+)
 from verify_skill_schema import validate_skill_schema  # noqa: E402
 
 
@@ -53,6 +56,25 @@ class VerificationBoundaryTest(unittest.TestCase):
             (skill_root / "SKILL.md").write_text("[escape](../outside.md)\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "leaves the release directory"):
                 verify_local_markdown_links(skill_root)
+
+    def test_repository_markdown_links_reject_missing_targets_and_ignore_scratch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            repository_root = Path(temp_name)
+            (repository_root / "README.md").write_text("root\n", encoding="utf-8")
+            docs = repository_root / "docs"
+            docs.mkdir()
+            (docs / "guide.md").write_text("[missing](missing.md)\n", encoding="utf-8")
+            scratch = repository_root / ".superpowers/sdd"
+            scratch.mkdir(parents=True)
+            (scratch / "scratch.md").write_text(
+                "[ignored](missing.md)\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "docs/guide.md -> missing.md is missing"):
+                verify_repository_markdown_links(repository_root)
+
+            (docs / "missing.md").write_text("present\n", encoding="utf-8")
+            self.assertEqual(1, verify_repository_markdown_links(repository_root))
 
     def test_unsupported_frontmatter_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:

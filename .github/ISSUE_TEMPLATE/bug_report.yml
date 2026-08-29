@@ -1,0 +1,37 @@
+name: Bug report
+description: 报告可复现的缺陷；请勿包含凭据或其他敏感输入。
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请提供最小、可公开的复现信息。安全问题请先阅读 SECURITY.md，不要在此提交漏洞细节或凭据。
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题摘要
+      description: 实际发生了什么？
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 最小复现步骤
+      description: 包括命令、已脱敏输入与预期结果。
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: 验证层级与证据
+      description: 说明 scripts/verify、CLI smoke 或真实 forward review 中哪些层实际运行，以及输出摘要。
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 环境
+      description: Python、Node、宿主 Agent 与操作系统版本。
+    validations:
+      required: true
