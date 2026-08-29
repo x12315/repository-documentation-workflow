@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from verify_forward_runs import validate_forward_run  # noqa: E402
+from verify_forward_runs import validate_forward_run, validate_version_root  # noqa: E402
 
 
 class ForwardRunValidationTest(unittest.TestCase):
@@ -36,25 +36,24 @@ class ForwardRunValidationTest(unittest.TestCase):
                 "model": "gpt-5 (exact runtime revision not exposed)",
                 "report_path": "author-report.md",
             },
-            "rounds": [{
-                "round": 1,
-                "reviewers": [
-                    {
-                        "role": "cold-reader",
-                        "reviewer_id": "/root/forward_cold_reader_r1",
-                        "model": "gpt-5 (exact runtime revision not exposed)",
-                        "verdict": "PASS",
-                        "result_path": "results/round-1-cold-reader.md",
-                    },
-                    {
-                        "role": "coverage-reviewer",
-                        "reviewer_id": "/root/forward_coverage_r1",
-                        "model": "gpt-5 (exact runtime revision not exposed)",
-                        "verdict": "PASS",
-                        "result_path": "results/round-1-coverage-reviewer.md",
-                    },
-                ],
-            }],
+            "rounds": [
+                {
+                    "round": 1,
+                    "role": "cold-reader",
+                    "reviewer_id": "/root/forward_cold_reader_r1",
+                    "model": "gpt-5 (exact runtime revision not exposed)",
+                    "verdict": "PASS",
+                    "result_path": "results/round-1-cold-reader.md",
+                },
+                {
+                    "round": 1,
+                    "role": "coverage-reviewer",
+                    "reviewer_id": "/root/forward_coverage_r1",
+                    "model": "gpt-5 (exact runtime revision not exposed)",
+                    "verdict": "PASS",
+                    "result_path": "results/round-1-coverage-reviewer.md",
+                },
+            ],
         }
         (run_root / "record.yaml").write_text(json.dumps(record), encoding="utf-8")
         return run_root
@@ -71,8 +70,7 @@ class ForwardRunValidationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             run_root = self.write_run(Path(temporary_directory))
             record = self.load_record(run_root)
-            reviewers = record["rounds"][0]["reviewers"]
-            reviewers[1]["reviewer_id"] = reviewers[0]["reviewer_id"]
+            record["rounds"][1]["reviewer_id"] = record["rounds"][0]["reviewer_id"]
             self.write_record(run_root, record)
 
             with self.assertRaisesRegex(ValueError, "reviewer_id.*unique"):
@@ -92,6 +90,28 @@ class ForwardRunValidationTest(unittest.TestCase):
             run_root = self.write_run(Path(temporary_directory))
 
             self.assertEqual(2, validate_forward_run(run_root, "0.1.0"))
+
+    def test_rejects_round_numbers_that_are_not_continuous_from_one(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            run_root = self.write_run(Path(temporary_directory))
+            record = self.load_record(run_root)
+            for reviewer in record["rounds"]:
+                reviewer["round"] = 2
+            self.write_record(run_root, record)
+
+            with self.assertRaisesRegex(ValueError, "continuous"):
+                validate_forward_run(run_root, "0.1.0")
+
+    def test_rejects_a_symlinked_run_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            version_root = root / "tests/forward-runs/0.1.0"
+            version_root.mkdir(parents=True)
+            outside_run = self.write_run(root / "outside")
+            (version_root / "escaped-run").symlink_to(outside_run, target_is_directory=True)
+
+            with self.assertRaisesRegex(ValueError, "symlink"):
+                validate_version_root(version_root, "0.1.0")
 
 
 if __name__ == "__main__":

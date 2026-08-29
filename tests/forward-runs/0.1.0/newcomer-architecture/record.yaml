@@ -12,22 +12,19 @@
   "rounds": [
     {
       "round": 1,
-      "reviewers": [
-        {
-          "role": "cold-reader",
-          "reviewer_id": "/root/forward_cold_reader_r1",
-          "model": "gpt-5 (exact runtime revision not exposed)",
-          "verdict": "PASS",
-          "result_path": "results/round-1-cold-reader.md"
-        },
-        {
-          "role": "coverage-reviewer",
-          "reviewer_id": "/root/forward_coverage_r1",
-          "model": "gpt-5 (exact runtime revision not exposed)",
-          "verdict": "PASS",
-          "result_path": "results/round-1-coverage-reviewer.md"
-        }
-      ]
+      "role": "cold-reader",
+      "reviewer_id": "/root/forward_cold_reader_r1",
+      "model": "gpt-5 (exact runtime revision not exposed)",
+      "verdict": "PASS",
+      "result_path": "results/round-1-cold-reader.md"
+    },
+    {
+      "round": 1,
+      "role": "coverage-reviewer",
+      "reviewer_id": "/root/forward_coverage_r1",
+      "model": "gpt-5 (exact runtime revision not exposed)",
+      "verdict": "PASS",
+      "result_path": "results/round-1-coverage-reviewer.md"
     }
   ]
 }

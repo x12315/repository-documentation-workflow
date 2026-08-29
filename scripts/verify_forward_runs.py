@@ -97,51 +97,73 @@ def validate_forward_run(run_root: Path, expected_version: str) -> int:
         raise ValueError("record.rounds must be a non-empty array")
 
     reviewer_ids: set[str] = set()
-    final_verdicts: list[str] = []
+    round_roles: dict[int, set[str]] = {}
+    round_verdicts: dict[int, list[str]] = {}
     reviewer_count = 0
-    for round_index, review_round in enumerate(rounds, start=1):
-        if not isinstance(review_round, dict):
-            raise ValueError(f"record.rounds[{round_index}] must be an object")
-        reviewers = review_round.get("reviewers")
-        if not isinstance(reviewers, list) or len(reviewers) != len(REVIEWER_ROLES):
-            raise ValueError(f"record.rounds[{round_index}] must contain both reviewer roles")
+    for reviewer_index, reviewer in enumerate(rounds, start=1):
+        location = f"record.rounds[{reviewer_index}]"
+        if not isinstance(reviewer, dict):
+            raise ValueError(f"{location} must be an object")
+        round_number = reviewer.get("round")
+        if isinstance(round_number, bool) or not isinstance(round_number, int) or round_number < 1:
+            raise ValueError(f"{location}.round must be a positive integer")
+        role = require_nonempty_string(reviewer, "role", location)
+        reviewer_id = require_nonempty_string(reviewer, "reviewer_id", location)
+        if reviewer_id in reviewer_ids:
+            raise ValueError("reviewer_id must be unique throughout one forward run")
+        reviewer_ids.add(reviewer_id)
+        require_nonempty_string(reviewer, "model", location)
+        verdict = reviewer.get("verdict")
+        if verdict not in VERDICTS:
+            raise ValueError(f"{location}.verdict must be PASS or FAIL")
+        result_path = resolve_evidence_path(run_root, reviewer.get("result_path"), f"{location}.result_path")
+        if first_result_verdict(result_path) != verdict:
+            raise ValueError(f"{location}.verdict does not match the first result verdict")
+        round_roles.setdefault(round_number, set()).add(role)
+        round_verdicts.setdefault(round_number, []).append(verdict)
+        reviewer_count += 1
 
-        roles: set[str] = set()
-        round_verdicts: list[str] = []
-        for reviewer_index, reviewer in enumerate(reviewers, start=1):
-            location = f"record.rounds[{round_index}].reviewers[{reviewer_index}]"
-            if not isinstance(reviewer, dict):
-                raise ValueError(f"{location} must be an object")
-            role = require_nonempty_string(reviewer, "role", location)
-            roles.add(role)
-            reviewer_id = require_nonempty_string(reviewer, "reviewer_id", location)
-            if reviewer_id in reviewer_ids:
-                raise ValueError("reviewer_id must be unique throughout one forward run")
-            reviewer_ids.add(reviewer_id)
-            require_nonempty_string(reviewer, "model", location)
-            verdict = reviewer.get("verdict")
-            if verdict not in VERDICTS:
-                raise ValueError(f"{location}.verdict must be PASS or FAIL")
-            result_path = resolve_evidence_path(run_root, reviewer.get("result_path"), f"{location}.result_path")
-            if first_result_verdict(result_path) != verdict:
-                raise ValueError(f"{location}.verdict does not match the first result verdict")
-            round_verdicts.append(verdict)
-            reviewer_count += 1
-
-        if roles != REVIEWER_ROLES:
-            raise ValueError(f"record.rounds[{round_index}] must contain cold-reader and coverage-reviewer")
-        final_verdicts = round_verdicts
+    round_numbers = set(round_verdicts)
+    if round_numbers != set(range(1, max(round_numbers) + 1)):
+        raise ValueError("record.rounds must use continuous round numbers starting at 1")
+    for round_number in round_numbers:
+        if len(round_verdicts[round_number]) != len(REVIEWER_ROLES) or round_roles[round_number] != REVIEWER_ROLES:
+            raise ValueError(f"round {round_number} must contain cold-reader and coverage-reviewer")
 
     outcome = record.get("outcome")
+    final_round = max(round_numbers)
+    final_verdicts = round_verdicts[final_round]
     if outcome == "passed":
         if set(final_verdicts) != {"PASS"}:
             raise ValueError("a passed forward run must end with a same-round double PASS")
     elif outcome == "blocked":
-        if len(rounds) != 3 or "FAIL" not in final_verdicts:
+        if len(round_numbers) != 3 or "FAIL" not in round_verdicts[3]:
             raise ValueError("a blocked forward run must have three rounds and end with a FAIL")
     else:
         raise ValueError("record.outcome must be passed or blocked")
     return reviewer_count
+
+
+def validate_version_root(version_root: Path, expected_version: str) -> tuple[int, int]:
+    """Validate direct run directories below one resolved version evidence root."""
+    if not version_root.is_dir():
+        raise ValueError(f"forward-run evidence is missing for version {expected_version}")
+    resolved_version_root = version_root.resolve()
+    candidates = sorted(path for path in version_root.iterdir() if path.is_dir() or path.is_symlink())
+    if not candidates:
+        raise ValueError(f"no forward runs recorded for version {expected_version}")
+
+    reviewer_count = 0
+    for candidate in candidates:
+        if candidate.is_symlink():
+            raise ValueError(f"forward run directory must not be a symlink: {candidate.name}")
+        run_root = candidate.resolve()
+        try:
+            run_root.relative_to(resolved_version_root)
+        except ValueError as error:
+            raise ValueError(f"forward run directory leaves version root: {candidate.name}") from error
+        reviewer_count += validate_forward_run(run_root, expected_version)
+    return len(candidates), reviewer_count
 
 
 def main() -> int:
@@ -153,16 +175,11 @@ def main() -> int:
     try:
         version = validate_plugin_manifest(repository_root)
         version_root = repository_root / "tests" / "forward-runs" / version
-        if not version_root.is_dir():
-            raise ValueError(f"forward-run evidence is missing for version {version}")
-        run_roots = sorted(path for path in version_root.iterdir() if path.is_dir())
-        if not run_roots:
-            raise ValueError(f"no forward runs recorded for version {version}")
-        reviewer_count = sum(validate_forward_run(run_root, version) for run_root in run_roots)
+        run_count, reviewer_count = validate_version_root(version_root, version)
     except ValueError as error:
         print(f"forward-run verification failed: {error}", file=sys.stderr)
         return 1
-    print(f"verified {len(run_roots)} forward run(s) and {reviewer_count} reviewer result(s)")
+    print(f"verified {run_count} forward run(s) and {reviewer_count} reviewer result(s)")
     return 0
 
 
