@@ -146,10 +146,28 @@ def _source_delivery_file(repository_root: Path, relative_path: Path) -> Path:
     return source_path
 
 
+def _source_skill_root(repository_root: Path, plugin_name: str) -> Path:
+    """Return the source Skill root after rejecting symlinked or escaped paths."""
+    resolved_root = repository_root.resolve()
+    skill_root = repository_root / "skills" / plugin_name
+    try:
+        skill_root.resolve(strict=True).relative_to(resolved_root)
+    except (OSError, ValueError) as error:
+        raise ValueError("source Skill root leaves repository") from error
+    current = skill_root
+    while current != repository_root:
+        if current.is_symlink():
+            raise ValueError("source Skill root uses symlink")
+        current = current.parent
+    if not skill_root.is_dir():
+        raise ValueError("source Skill root must be a directory")
+    return skill_root
+
+
 def validate_marketplace_smoke(repository_root: Path) -> int:
     """Build and validate a temporary local marketplace for this plugin."""
     plugin_name = repository_root.name
-    source_skill_root = repository_root / "skills" / plugin_name
+    source_skill_root = _source_skill_root(repository_root, plugin_name)
     with tempfile.TemporaryDirectory() as temp_name:
         marketplace_root = Path(temp_name)
         plugin_root = marketplace_root / "plugins" / plugin_name

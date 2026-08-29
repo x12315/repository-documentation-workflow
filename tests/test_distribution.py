@@ -95,6 +95,28 @@ class DistributionTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "source delivery"):
                 validate_marketplace_smoke(repository_root)
 
+    def test_marketplace_smoke_rejects_symlinked_source_skill_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            workspace = Path(temp_name)
+            for symlink_path in (Path("skills"), Path("skills/repository-documentation-workflow")):
+                with self.subTest(symlink_path=symlink_path):
+                    repository_root = self._write_minimal_repository(workspace / symlink_path.name)
+                    source_root = repository_root / "skills/repository-documentation-workflow"
+                    outside_root = workspace / f"outside-{symlink_path.name}" / "repository-documentation-workflow"
+                    outside_root.mkdir(parents=True)
+                    (outside_root / "SKILL.md").write_bytes((source_root / "SKILL.md").read_bytes())
+                    if symlink_path == Path("skills"):
+                        (source_root / "SKILL.md").unlink()
+                        source_root.rmdir()
+                        (repository_root / "skills").rmdir()
+                        (repository_root / "skills").symlink_to(outside_root.parent, target_is_directory=True)
+                    else:
+                        (source_root / "SKILL.md").unlink()
+                        source_root.rmdir()
+                        source_root.symlink_to(outside_root, target_is_directory=True)
+                    with self.assertRaisesRegex(ValueError, "source Skill root"):
+                        validate_marketplace_smoke(repository_root)
+
     def test_skill_inventory_rejects_bytes_and_symlink_drift(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
