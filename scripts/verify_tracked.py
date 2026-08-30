@@ -7,6 +7,41 @@ import sys
 from pathlib import Path
 
 
+def _is_ignored_by_repository(repository_root: Path, relative_path: Path) -> bool:
+    """Return whether a worktree `.gitignore` ignores a relative path."""
+    command = [
+        "git",
+        "-C",
+        str(repository_root),
+        "check-ignore",
+        "--no-index",
+        "--verbose",
+        "--",
+        relative_path.as_posix(),
+    ]
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode == 1:
+        return False
+    if result.returncode != 0:
+        raise subprocess.CalledProcessError(
+            result.returncode,
+            command,
+            output=result.stdout,
+            stderr=result.stderr,
+        )
+
+    metadata, _, _ = result.stdout.partition("\t")
+    source, _, _ = metadata.partition(":")
+    source_path = (repository_root / source).resolve()
+    worktree_root = repository_root.resolve()
+    git_directory = worktree_root / ".git"
+    return (
+        source_path.name == ".gitignore"
+        and source_path.is_relative_to(worktree_root)
+        and not source_path.is_relative_to(git_directory)
+    )
+
+
 def verify_tracked_delivery(repository_root: Path) -> int | None:
     """Return checked file count, or None when running outside a Git checkout."""
     probe = subprocess.run(
@@ -46,7 +81,20 @@ def verify_tracked_delivery(repository_root: Path) -> int | None:
         Path("CONTRIBUTING.md"),
         Path("SECURITY.md"),
     })
+    expected = {
+        path
+        for path in expected
+        if not _is_ignored_by_repository(repository_root, path)
+    }
 
+    ignored_tracked = sorted(
+        path for path in tracked if _is_ignored_by_repository(repository_root, path)
+    )
+    if ignored_tracked:
+        raise ValueError(
+            "tracked files match repository ignore rules: "
+            + ", ".join(map(str, ignored_tracked))
+        )
     untracked = sorted(expected - tracked)
     missing = sorted(path for path in tracked if not (repository_root / path).exists())
     if untracked or missing:

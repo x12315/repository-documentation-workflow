@@ -11,6 +11,7 @@
 
 ### Changed
 
+- Superpowers scratch 和过程文档现在排除在 release tree 外，tracked-delivery verification 会强制执行这项忽略边界。
 - `scripts/verify` 现在包含 plugin 分发校验。
 - `scripts/verify_tracked.py` 将 `.github`、`.codex-plugin`、`docs`、脚本、Skill、测试和根治理文档纳入必须被 Git 跟踪的交付边界。
 - `.gitignore` 忽略消费端安装产物 `.agents/skills/` 与 `skills-lock.json`。

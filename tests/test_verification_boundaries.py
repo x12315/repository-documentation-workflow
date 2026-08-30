@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -18,9 +19,63 @@ from verify_release import (  # noqa: E402
     verify_repository_markdown_links,
 )
 from verify_skill_schema import validate_skill_schema  # noqa: E402
+from verify_tracked import verify_tracked_delivery  # noqa: E402
+
+
+def initialize_delivery_repository(repository_root: Path) -> None:
+    """Create a staged repository with an ignored Superpowers process file."""
+    root_delivery_files = (
+        ".gitignore",
+        "LICENSE",
+        "README.md",
+        "CHANGELOG.md",
+        "CODE_OF_CONDUCT.md",
+        "CONTRIBUTING.md",
+        "SECURITY.md",
+    )
+    for relative_name in root_delivery_files:
+        path = repository_root / relative_name
+        path.write_text("delivery\n", encoding="utf-8")
+    (repository_root / ".gitignore").write_text(
+        "docs/superpowers/\n",
+        encoding="utf-8",
+    )
+    (repository_root / "docs").mkdir()
+    (repository_root / "docs/guide.md").write_text("guide\n", encoding="utf-8")
+    process_file = repository_root / "docs/superpowers/process.md"
+    process_file.parent.mkdir()
+    process_file.write_text("process\n", encoding="utf-8")
+
+    subprocess.run(["git", "init"], cwd=repository_root, check=True)
+    subprocess.run(
+        ["git", "add", *root_delivery_files, "docs/guide.md"],
+        cwd=repository_root,
+        check=True,
+    )
 
 
 class VerificationBoundaryTest(unittest.TestCase):
+    def test_tracked_delivery_excludes_repository_ignored_worktree_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            repository_root = Path(temp_name)
+            initialize_delivery_repository(repository_root)
+            self.assertEqual(8, verify_tracked_delivery(repository_root))
+
+    def test_tracked_delivery_rejects_force_added_ignored_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            repository_root = Path(temp_name)
+            initialize_delivery_repository(repository_root)
+            subprocess.run(
+                ["git", "add", "--force", "docs/superpowers/process.md"],
+                cwd=repository_root,
+                check=True,
+            )
+            with self.assertRaisesRegex(
+                ValueError,
+                "tracked files match repository ignore rules: docs/superpowers/process.md",
+            ):
+                verify_tracked_delivery(repository_root)
+
     def test_unlocked_upstream_file_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             skill_root = Path(temp_name)
