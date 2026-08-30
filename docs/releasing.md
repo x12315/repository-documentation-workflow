@@ -34,7 +34,7 @@
 
 ## GitHub 仓库配置
 
-远程仓库已配置真实 description、topics 和 `main` 默认分支。正式发布前还应核对默认分支保护和 Security 页面配置；启用 GitHub private vulnerability reporting 后，`SECURITY.md` 中的 **Report a vulnerability** 路径才可用。不要用未知 URL、账号或邮箱替代这些事实。
+远程仓库已配置真实 description、topics、`main` 默认分支、必需 CI 检查和管理员不可绕过的分支保护，并已启用 GitHub private vulnerability reporting。正式发布前仍应核对这些远程设置与当前 CI context、`SECURITY.md` 和实际维护流程一致；不要用未知 URL、账号或邮箱替代这些事实。
 
 ## 需要用户确认的动作
 
