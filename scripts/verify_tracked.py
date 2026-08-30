@@ -64,7 +64,7 @@ def _is_ignored_by_repository(repository_root: Path, relative_path: Path) -> boo
 
     worktree_root = repository_root.resolve()
     source_path = (worktree_root / source).resolve()
-    target_path = (worktree_root / relative_path).resolve()
+    target_path = Path(os.path.normpath(worktree_root / relative_path))
     git_directory = worktree_root / ".git"
     if not (
         source_path.name == ".gitignore"

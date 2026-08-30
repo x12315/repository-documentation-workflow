@@ -234,6 +234,47 @@ class VerificationBoundaryTest(unittest.TestCase):
             ):
                 verify_tracked_delivery(repository_root)
 
+    def test_root_gitignore_excludes_untracked_symlink_to_external_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            temporary_root = Path(temp_name)
+            repository_root = temporary_root / "repository"
+            repository_root.mkdir()
+            initialize_delivery_repository(
+                repository_root,
+                ignore_rules="docs/ignored-link.md\n",
+                process_path=None,
+            )
+            external_file = temporary_root / "external.md"
+            external_file.write_text("external\n", encoding="utf-8")
+            (repository_root / "docs/ignored-link.md").symlink_to(external_file)
+            self.assertEqual(8, verify_tracked_delivery(repository_root))
+
+    def test_root_gitignore_rejects_force_added_symlink_to_external_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            temporary_root = Path(temp_name)
+            repository_root = temporary_root / "repository"
+            repository_root.mkdir()
+            initialize_delivery_repository(
+                repository_root,
+                ignore_rules="docs/ignored-link.md\n",
+                process_path=None,
+            )
+            external_file = temporary_root / "external.md"
+            external_file.write_text("external\n", encoding="utf-8")
+            ignored_link = repository_root / "docs/ignored-link.md"
+            ignored_link.symlink_to(external_file)
+            subprocess.run(
+                ["git", "add", "--force", "docs/ignored-link.md"],
+                cwd=repository_root,
+                check=True,
+                capture_output=True,
+            )
+            with self.assertRaisesRegex(
+                ValueError,
+                "tracked files match repository ignore rules: docs/ignored-link.md",
+            ):
+                verify_tracked_delivery(repository_root)
+
     def test_unlocked_upstream_file_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             skill_root = Path(temp_name)
