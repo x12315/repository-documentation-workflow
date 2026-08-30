@@ -2,26 +2,37 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 
-def _is_ignored_by_repository(repository_root: Path, relative_path: Path) -> bool:
-    """Return whether a worktree `.gitignore` ignores a relative path."""
+def _check_ignore_rule(
+    repository_root: Path,
+    relative_path: Path,
+    *,
+    excludes_file: str | None = None,
+) -> tuple[Path, int, str, Path] | None:
+    """Return the Git ignore rule that matches a relative path, if any."""
     command = [
         "git",
+        *(["-c", f"core.excludesFile={excludes_file}"] if excludes_file else []),
         "-C",
         str(repository_root),
         "check-ignore",
         "--no-index",
         "--verbose",
-        "--",
-        relative_path.as_posix(),
+        "-z",
+        "--stdin",
     ]
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(
+        command,
+        input=relative_path.as_posix().encode("utf-8") + b"\0",
+        capture_output=True,
+    )
     if result.returncode == 1:
-        return False
+        return None
     if result.returncode != 0:
         raise subprocess.CalledProcessError(
             result.returncode,
@@ -30,15 +41,53 @@ def _is_ignored_by_repository(repository_root: Path, relative_path: Path) -> boo
             stderr=result.stderr,
         )
 
-    metadata, _, _ = result.stdout.partition("\t")
-    source, _, _ = metadata.partition(":")
-    source_path = (repository_root / source).resolve()
-    worktree_root = repository_root.resolve()
-    git_directory = worktree_root / ".git"
+    source, line_number, pattern, pathname, terminator = result.stdout.split(b"\0")
+    if terminator:
+        raise ValueError("Git ignore output is missing its NUL terminator")
     return (
+        Path(source.decode("utf-8")),
+        int(line_number),
+        pattern.decode("utf-8"),
+        Path(pathname.decode("utf-8")),
+    )
+
+
+def _is_ignored_by_repository(repository_root: Path, relative_path: Path) -> bool:
+    """Return whether a worktree `.gitignore` ignores a relative path."""
+    matching_rule = _check_ignore_rule(repository_root, relative_path)
+    if matching_rule is None:
+        return False
+
+    source, line_number, pattern, pathname = matching_rule
+    if pattern.startswith("!"):
+        return False
+
+    worktree_root = repository_root.resolve()
+    source_path = (worktree_root / source).resolve()
+    target_path = (worktree_root / relative_path).resolve()
+    git_directory = worktree_root / ".git"
+    if not (
         source_path.name == ".gitignore"
         and source_path.is_relative_to(worktree_root)
         and not source_path.is_relative_to(git_directory)
+        and target_path.is_relative_to(source_path.parent)
+    ):
+        return False
+
+    repository_rule = _check_ignore_rule(
+        repository_root,
+        relative_path,
+        excludes_file=os.devnull,
+    )
+    if repository_rule is None:
+        return False
+
+    repository_source, repository_line, repository_pattern, repository_path = repository_rule
+    return (
+        (worktree_root / repository_source).resolve() == source_path
+        and repository_line == line_number
+        and repository_pattern == pattern
+        and repository_path == pathname
     )
 
 
