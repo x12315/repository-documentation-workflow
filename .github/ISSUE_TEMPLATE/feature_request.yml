@@ -1,0 +1,33 @@
+name: 功能建议
+description: 提出可评估的功能建议与范围边界。
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 使用场景与问题
+      description: 要解决的具体仓库文档任务是什么？
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 期望行为
+      description: 描述可观察的结果，而不是仅给出实现方案。
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: 范围与非目标
+      description: 说明不应扩大到哪些文档类型、权限或外部操作。
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 验证设想
+      description: 哪些确定性测试或真实 forward-review evidence 能支持该行为？
+    validations:
+      required: true

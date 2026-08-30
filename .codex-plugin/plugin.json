@@ -1,0 +1,27 @@
+{
+  "name": "repository-documentation-workflow",
+  "version": "0.1.0",
+  "description": "按读者认知路径设计、核实并独立审查仓库文档。",
+  "author": {
+    "name": "repository-documentation-workflow contributors"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "documentation",
+    "repository",
+    "review",
+    "codex"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Repository Documentation Workflow",
+    "shortDescription": "按读者认知路径编写并审查仓库文档",
+    "longDescription": "通过读者契约、事实账本、认知路径和双 reviewer，编写可核验的仓库文档。",
+    "developerName": "repository-documentation-workflow contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Write"
+    ],
+    "defaultPrompt": "根据代码、配置和测试，创建或实质性重写这个仓库的文档。"
+  }
+}

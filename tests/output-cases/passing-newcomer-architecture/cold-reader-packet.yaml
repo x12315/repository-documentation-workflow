@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "role": "cold-reader",
+  "primary_reader": "刚加入 RelayHub 项目、目前只知道系统负责接收和分发任务的后端工程师",
+  "entry_state": [
+    "知道 RelayHub 接收并分发任务",
+    "尚未建立任务端到端路径、组件边界和失败恢复模型"
+  ],
+  "exit_outcomes": [
+    "能按顺序说明一次成功任务如何经过 ingress、task_log、router、queue、worker、result_store 和 receipt-api",
+    "能区分 ingress、router、worker 与 receipt-api 的职责和明确的不负责事项",
+    "能指出 task_log 与 result_store 的写入、读取和可见性边界",
+    "能解释至少一次投递为何可能产生重复处理，以及 task_id 幂等写如何处理已写结果后的重复投递",
+    "能区分当前自动化测试已覆盖的行为、尚未执行的验证和 source packet 未定义的行为",
+    "需要查询 task_type 到 queue 的完整映射时，知道转向配置 reference，而不是从架构主线寻找"
+  ],
+  "reading_mode": "hybrid",
+  "reading_order": ["draft.md"],
+  "draft_paths": ["draft.md"]
+}

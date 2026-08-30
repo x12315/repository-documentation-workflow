@@ -20,6 +20,8 @@ if [ -z "$validator" ]; then
   fi
 fi
 python3 "$repository_root/scripts/verify_skill_schema.py" "$skill_root"
+python3 "$repository_root/scripts/verify_distribution.py" "$repository_root"
+python3 "$repository_root/tests/test_distribution.py"
 python3 "$repository_root/scripts/verify_tracked.py" "$repository_root"
 
 if [ -n "$validator" ] && [ -f "$validator" ] && python3 -c 'import yaml' >/dev/null 2>&1; then
@@ -31,7 +33,10 @@ fi
 
 "$repository_root/scripts/verify-upstreams"
 python3 "$repository_root/scripts/verify_release.py" "$skill_root"
+python3 "$repository_root/scripts/verify_release.py" --repository-root "$repository_root"
 "$repository_root/tests/verify-fixtures"
+python3 "$repository_root/scripts/verify_forward_runs.py" "$repository_root"
+python3 "$repository_root/tests/test_forward_runs.py"
 python3 "$repository_root/tests/test_verification_boundaries.py"
 python3 "$repository_root/tests/test_sync_upstreams.py"
 

@@ -1,6 +1,10 @@
 {
   "schema_version": 1,
   "fixture_intent": "负向成稿用于验证 reviewer 数据包与记录协议；确定性脚本不运行或模拟模型判断。",
+  "expected_verdicts": {
+    "cold-reader": "FAIL",
+    "coverage-reviewer": "FAIL"
+  },
   "expected_findings": {
     "cold-reader": [
       {

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "role": "coverage-reviewer",
+  "scope": {
+    "includes": [
+      "任务的端到端主路径",
+      "组件职责与依赖方向",
+      "task_log、result_store、queue acknowledgment 和 worker 内存的边界",
+      "source packet 明确描述的失败恢复行为",
+      "当前自动化测试覆盖范围与尚未执行的验证"
+    ],
+    "delegates": [
+      {
+        "topic": "task_type 与 queue 的完整映射",
+        "destination": "配置 reference（source packet 未提供具体路径）"
+      }
+    ],
+    "excludes": [
+      "source packet 未提供的数据模型、保留策略、一致性和复制保证",
+      "source packet 未定义的失败重试策略和错误接口契约",
+      "尚未执行的压力测试、跨可用区恢复和生产故障演练结论"
+    ]
+  },
+  "fact_ledger_path": "fact-ledger.md",
+  "sources": [
+    {"path": "source-packet.md", "range": "S1-S10"}
+  ],
+  "draft_paths": ["draft.md"],
+  "evidence_levels": ["implemented", "automated test", "tested with named gaps", "documented boundary"]
+}

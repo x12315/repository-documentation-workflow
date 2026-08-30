@@ -36,6 +36,24 @@
       "request": "运行现有 OpenAPI 文档生成器并提交输出，不要人工改写。",
       "expected": "do-not-invoke",
       "reason": "生成文档由现有生成流程负责。"
+    },
+    {
+      "id": "english-readme-minor-edit",
+      "request": "Fix the typo in the second README paragraph and leave every other sentence unchanged.",
+      "expected": "do-not-invoke",
+      "reason": "英文轻微编辑不需要完整工作流。"
+    },
+    {
+      "id": "english-commit-copy",
+      "request": "Write concise English copy for the commit message that summarizes the current diff.",
+      "expected": "do-not-invoke",
+      "reason": "英文 commit 文案不是项目文档。"
+    },
+    {
+      "id": "english-code-only-change",
+      "request": "Refactor the queue retry helper and update its unit tests without changing any human-facing documentation.",
+      "expected": "do-not-invoke",
+      "reason": "纯代码与测试任务没有适用的文档部分。"
     }
   ]
 }
